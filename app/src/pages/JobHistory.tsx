@@ -60,17 +60,34 @@ export function JobHistory() {
     fetchJobs();
   }, [page, filters, sortConfig]);
 
-  // Polling for running jobs
+  // Polling for running jobs (list view)
   useEffect(() => {
     const hasRunningJobs = data?.items.some(job => job.status === 'RUNNING' || job.status === 'PENDING');
     if (!hasRunningJobs) return;
 
     const interval = setInterval(() => {
       fetchJobs(true);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [data]);
+
+  // Polling for selected job (detail view)
+  useEffect(() => {
+    if (!selectedJob) return;
+    if (selectedJob.status === 'COMPLETED' || selectedJob.status === 'FAILED' || selectedJob.status === 'PARTIAL') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const updatedJob = await jobService.getJob(selectedJob.id);
+        setSelectedJob(updatedJob);
+      } catch (error) {
+        console.error('Failed to poll selected job:', error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [selectedJob]);
 
   const handleSort = (key: string) => {
     setSortConfig(current => ({

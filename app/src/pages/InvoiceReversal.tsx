@@ -23,6 +23,7 @@ export function InvoiceReversal() {
   const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
 
   const [data, setData] = useState<Invoice[]>([]);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<InvoiceFilter & { page: number }>({
     page: 1,
@@ -47,6 +48,7 @@ export function InvoiceReversal() {
         sortOrder: sortConfig?.direction,
       });
       setData(response.items);
+      setTotal(response.total);
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
       toast.error('Failed to load invoices from Xero');
@@ -400,6 +402,31 @@ export function InvoiceReversal() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {total > 10 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-[#555555]">
+            Page {filters.page} (Total: {total})
+          </p>
+          <div className="flex gap-2">
+            <button
+              disabled={filters.page === 1}
+              onClick={() => setFilters(p => ({ ...p, page: p.page - 1 }))}
+              className="px-4 py-2 border rounded-md text-sm disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              disabled={data.length < 10}
+              onClick={() => setFilters(p => ({ ...p, page: p.page + 1 }))}
+              className="px-4 py-2 border rounded-md text-sm disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Selected Items Bar */}
       {selectedInvoices.length > 0 && (
