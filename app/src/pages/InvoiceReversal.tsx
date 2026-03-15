@@ -1,49 +1,65 @@
-import { useState, useMemo } from 'react';
-import type { Invoice } from '@/types';
-import { useInvoiceFilter } from '@/hooks/useInvoiceFilter';
-
-const invoices: Invoice[] = [];
-import { 
-  Search, 
-  Filter, 
-  Calendar, 
-  DollarSign, 
-  ChevronDown, 
-  ChevronUp, 
-  Eye,
+import { useState, useMemo, useEffect } from 'react';
+import type { Invoice, InvoiceFilter } from '@/types';
+import { xeroService } from '@/services/xeroService';
+import { jobService } from '@/services/jobService';
+import {
+  Search,
+  Filter,
+  Calendar,
+  DollarSign,
+  ChevronDown,
+  ChevronUp,
   X,
   Check,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export function InvoiceReversal() {
-  const { filters, filteredInvoices, setFilter, resetFilters, hasActiveFilters } = useInvoiceFilter(invoices);
+  const { user } = useAuth();
+  const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
+
+  const [data, setData] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<InvoiceFilter & { page: number }>({
+    page: 1,
+    search: '',
+  });
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Invoice; direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'invoiceDate', direction: 'desc' });
   const [showPreview, setShowPreview] = useState(false);
   const [executionStep, setExecutionStep] = useState<'preview' | 'executing' | 'completed'>('preview');
   const [reversalDate, setReversalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
 
-  const currencies = [...new Set(invoices.map(inv => inv.currency))];
-  const statuses = [...new Set(invoices.map(inv => inv.status))];
+  const fetchInvoices = async () => {
+    setIsLoading(true);
+    try {
+      const response = await xeroService.getInvoices({
+        ...filters,
+        status: 'AUTHORISED',
+        sortBy: sortConfig?.key,
+        sortOrder: sortConfig?.direction,
+      });
+      setData(response.items);
+    } catch (error) {
+      console.error('Failed to fetch invoices:', error);
+      toast.error('Failed to load invoices from Xero');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const sortedInvoices = useMemo(() => {
-    if (!sortConfig) return filteredInvoices;
-    
-    return [...filteredInvoices].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-      
-      if (aValue === undefined || bValue === undefined) return 0;
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredInvoices, sortConfig]);
+  useEffect(() => {
+    fetchInvoices();
+  }, [filters, sortConfig]);
 
-  const handleSort = (key: keyof Invoice) => {
+  const handleSort = (key: string) => {
     setSortConfig(current => {
       if (!current || current.key !== key) {
         return { key, direction: 'asc' };
@@ -51,40 +67,77 @@ export function InvoiceReversal() {
       if (current.direction === 'asc') {
         return { key, direction: 'desc' };
       }
-      return null;
+      return { key, direction: 'asc' };
     });
   };
 
   const toggleSelection = (id: string) => {
-    setSelectedInvoices(prev => 
-      prev.includes(id) 
+    setSelectedInvoices(prev =>
+      prev.includes(id)
         ? prev.filter(i => i !== id)
         : [...prev, id]
     );
   };
 
   const toggleAll = () => {
-    if (selectedInvoices.length === sortedInvoices.length) {
+    if (selectedInvoices.length === data.length) {
       setSelectedInvoices([]);
     } else {
-      setSelectedInvoices(sortedInvoices.map(inv => inv.id));
+      setSelectedInvoices(data.map(inv => inv.id));
     }
   };
 
   const selectedTotal = useMemo(() => {
     return selectedInvoices.reduce((sum, id) => {
-      const inv = invoices.find(i => i.id === id);
+      const inv = data.find(i => i.id === id);
       return sum + (inv?.amountDue || 0);
     }, 0);
-  }, [selectedInvoices]);
+  }, [selectedInvoices, data]);
 
   const handleExecute = async () => {
     setExecutionStep('executing');
-    
-    // Simulate execution
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    setExecutionStep('completed');
+    setIsProcessing(true);
+
+    try {
+      // 1. Create Job
+      const job = await jobService.createJob({
+        jobType: 'INVOICE_REVERSAL',
+        reversalDate,
+        notes: `Reversal of ${selectedInvoices.length} invoices requested on ${new Date().toLocaleDateString()}`
+      });
+
+      setCreatedJobId(job.id);
+
+      // 2. Add Items
+      const items = selectedInvoices.map(id => {
+        const inv = data.find(i => i.id === id);
+        return {
+          itemType: 'INVOICE',
+          xeroInvoiceId: inv?.xeroInvoiceId,
+          invoiceNumber: inv?.invoiceNumber,
+          contactName: inv?.vendorName,
+          expectedAmount: inv?.amountDue
+        };
+      });
+
+      await jobService.addItems(job.id, items);
+
+      // 3. Approve Job
+      if (isApprover) {
+        await jobService.approveJob(job.id);
+        toast.success('Job created and scheduled for execution');
+      } else {
+        toast.success('Job created and submitted for approval');
+      }
+
+      setExecutionStep('completed');
+    } catch (error) {
+      console.error('Job execution failed:', error);
+      toast.error('Failed to create or approve job');
+      setExecutionStep('preview');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -102,14 +155,12 @@ export function InvoiceReversal() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      authorised: 'bg-[#E8F5E9] text-[#3BB54A]',
-      approved: 'bg-[#FFF4E5] text-[#FFA726]',
-      paid: 'bg-[#E5F6FC] text-[#13B5EA]',
-      voided: 'bg-[#F5F5F5] text-[#8A8A8A]',
-    };
-    return styles[status] || 'bg-[#F5F5F5] text-[#8A8A8A]';
+  const hasActiveFilters = useMemo(() => {
+    return !!(filters.search || filters.dateFrom || filters.dateTo || filters.vendorId || filters.currencyCode || filters.amountMin || filters.amountMax);
+  }, [filters]);
+
+  const resetFilters = () => {
+    setFilters({ page: 1, search: '' });
   };
 
   return (
@@ -121,22 +172,25 @@ export function InvoiceReversal() {
           <p className="text-[#555555]">Select invoices to reverse with credit notes</p>
         </div>
         <div className="flex gap-3">
-          <button 
+          <button
+            onClick={() => fetchInvoices()}
+            className="flex items-center gap-2 px-4 py-2.5 border border-[#E0E0E0] text-[#555555] rounded-md text-sm font-medium hover:border-[#13B5EA] hover:text-[#13B5EA] transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2.5 border rounded-md text-sm font-medium transition-all duration-150 ${
-              showFilters || hasActiveFilters
-                ? 'border-[#13B5EA] bg-[#E5F6FC] text-[#13B5EA]'
-                : 'border-[#E0E0E0] text-[#555555] hover:border-[#13B5EA] hover:text-[#13B5EA]'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2.5 border rounded-md text-sm font-medium transition-all duration-150 ${showFilters || hasActiveFilters
+              ? 'border-[#13B5EA] bg-[#E5F6FC] text-[#13B5EA]'
+              : 'border-[#E0E0E0] text-[#555555] hover:border-[#13B5EA] hover:text-[#13B5EA]'
+              }`}
           >
             <Filter className="w-4 h-4" />
             Filters
             {hasActiveFilters && (
               <span className="w-2 h-2 rounded-full bg-[#13B5EA]" />
             )}
-          </button>
-          <button className="px-4 py-2.5 border border-[#E0E0E0] text-[#555555] rounded-md text-sm font-medium hover:border-[#13B5EA] hover:text-[#13B5EA] transition-all duration-150">
-            Save Configuration
           </button>
         </div>
       </div>
@@ -151,7 +205,7 @@ export function InvoiceReversal() {
               <input
                 type="date"
                 value={filters.dateFrom || ''}
-                onChange={(e) => setFilter('dateFrom', e.target.value)}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
                 className="w-full h-10 px-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none"
               />
             </div>
@@ -160,21 +214,21 @@ export function InvoiceReversal() {
               <input
                 type="date"
                 value={filters.dateTo || ''}
-                onChange={(e) => setFilter('dateTo', e.target.value)}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
                 className="w-full h-10 px-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none"
               />
             </div>
 
-            {/* Vendor Search */}
+            {/* General Search */}
             <div>
-              <label className="block text-sm font-medium text-[#555555] mb-1.5">Vendor</label>
+              <label className="block text-sm font-medium text-[#555555] mb-1.5">Search</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
                 <input
                   type="text"
-                  value={filters.vendor || ''}
-                  onChange={(e) => setFilter('vendor', e.target.value)}
-                  placeholder="Search vendors..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  placeholder="Invoice # or Vendor..."
                   className="w-full h-10 pl-10 pr-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none"
                 />
               </div>
@@ -183,41 +237,13 @@ export function InvoiceReversal() {
             {/* Currency */}
             <div>
               <label className="block text-sm font-medium text-[#555555] mb-1.5">Currency</label>
-              <select
-                value={filters.currencies?.[0] || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFilter('currencies', value ? [value] : undefined);
-                }}
-                className="w-full h-10 px-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none"
-              >
-                <option value="">All currencies</option>
-                {currencies.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-
-            {/* Status */}
-            <div className="md:col-span-2 lg:col-span-4">
-              <label className="block text-sm font-medium text-[#555555] mb-1.5">Status</label>
-              <div className="flex flex-wrap gap-2">
-                {statuses.map(status => (
-                  <label key={status} className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={filters.statuses?.includes(status) || false}
-                      onChange={(e) => {
-                        const current = filters.statuses || [];
-                        const updated = e.target.checked
-                          ? [...current, status]
-                          : current.filter(s => s !== status);
-                        setFilter('statuses', updated.length > 0 ? updated : undefined);
-                      }}
-                      className="w-4 h-4 border border-[#E0E0E0] rounded text-[#13B5EA] focus:ring-[#13B5EA]"
-                    />
-                    <span className="text-sm text-[#555555] capitalize">{status}</span>
-                  </label>
-                ))}
-              </div>
+              <input
+                type="text"
+                value={filters.currencyCode || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, currencyCode: e.target.value }))}
+                placeholder="USD, AUD..."
+                className="w-full h-10 px-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:outline-none"
+              />
             </div>
 
             {/* Amount Range */}
@@ -228,7 +254,7 @@ export function InvoiceReversal() {
                 <input
                   type="number"
                   value={filters.amountMin || ''}
-                  onChange={(e) => setFilter('amountMin', e.target.value ? parseFloat(e.target.value) : undefined)}
+                  onChange={(e) => setFilters(prev => ({ ...prev, amountMin: e.target.value ? parseFloat(e.target.value) : undefined }))}
                   placeholder="0.00"
                   className="w-full h-10 pl-10 pr-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none"
                 />
@@ -241,7 +267,7 @@ export function InvoiceReversal() {
                 <input
                   type="number"
                   value={filters.amountMax || ''}
-                  onChange={(e) => setFilter('amountMax', e.target.value ? parseFloat(e.target.value) : undefined)}
+                  onChange={(e) => setFilters(prev => ({ ...prev, amountMax: e.target.value ? parseFloat(e.target.value) : undefined }))}
                   placeholder="∞"
                   className="w-full h-10 pl-10 pr-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none"
                 />
@@ -270,7 +296,7 @@ export function InvoiceReversal() {
       {/* Results Count */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-[#8A8A8A]">
-          Showing {sortedInvoices.length} of {invoices.length} invoices
+          {isLoading ? 'Loading invoices...' : `Showing ${data.length} AUTHORISED invoices`}
         </p>
         {hasActiveFilters && (
           <button
@@ -283,7 +309,12 @@ export function InvoiceReversal() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white border border-[#E0E0E0] rounded-lg overflow-hidden">
+      <div className="bg-white border border-[#E0E0E0] rounded-lg overflow-hidden relative min-h-[400px]">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+            <Loader2 className="w-8 h-8 text-[#13B5EA] animate-spin" />
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -291,22 +322,22 @@ export function InvoiceReversal() {
                 <th className="py-3 px-4 border-b-2 border-[#E0E0E0]">
                   <input
                     type="checkbox"
-                    checked={selectedInvoices.length === sortedInvoices.length && sortedInvoices.length > 0}
+                    checked={data.length > 0 && selectedInvoices.length === data.length}
                     onChange={toggleAll}
+                    disabled={data.length === 0}
                     className="w-4 h-4 border border-[#E0E0E0] rounded text-[#13B5EA] focus:ring-[#13B5EA]"
                   />
                 </th>
                 {[
-                  { key: 'date', label: 'Date' },
+                  { key: 'invoiceDate', label: 'Date' },
                   { key: 'vendorName', label: 'Vendor' },
                   { key: 'invoiceNumber', label: 'Invoice #' },
                   { key: 'amountDue', label: 'Amount Due' },
-                  { key: 'currency', label: 'Currency' },
-                  { key: 'status', label: 'Status' },
+                  { key: 'currencyCode', label: 'Currency' },
                 ].map(column => (
                   <th
                     key={column.key}
-                    onClick={() => handleSort(column.key as keyof Invoice)}
+                    onClick={() => handleSort(column.key)}
                     className="py-3 px-4 border-b-2 border-[#E0E0E0] text-left text-xs font-semibold uppercase tracking-wide text-[#555555] cursor-pointer hover:text-[#13B5EA] transition-colors"
                   >
                     <div className="flex items-center gap-1">
@@ -317,20 +348,16 @@ export function InvoiceReversal() {
                     </div>
                   </th>
                 ))}
-                <th className="py-3 px-4 border-b-2 border-[#E0E0E0] text-left text-xs font-semibold uppercase tracking-wide text-[#555555]">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody>
-              {sortedInvoices.map((invoice) => (
+              {data.map((invoice) => (
                 <tr
                   key={invoice.id}
-                  className={`transition-colors duration-150 ${
-                    selectedInvoices.includes(invoice.id)
-                      ? 'bg-[#D1F0FA] border-l-4 border-l-[#13B5EA]'
-                      : 'hover:bg-[#E5F6FC]'
-                  }`}
+                  className={`transition-colors duration-150 ${selectedInvoices.includes(invoice.id)
+                    ? 'bg-[#E5F6FC] border-l-4 border-l-[#13B5EA]'
+                    : 'hover:bg-[#FAFAFA]'
+                    }`}
                 >
                   <td className="py-3.5 px-4 border-b border-[#F5F5F5]">
                     <input
@@ -341,31 +368,21 @@ export function InvoiceReversal() {
                     />
                   </td>
                   <td className="py-3.5 px-4 border-b border-[#F5F5F5] font-mono text-sm text-[#555555]">
-                    {formatDate(invoice.date)}
+                    {formatDate(invoice.invoiceDate)}
                   </td>
                   <td className="py-3.5 px-4 border-b border-[#F5F5F5] text-sm text-[#1A1A1A] font-medium">
                     {invoice.vendorName}
                   </td>
                   <td className="py-3.5 px-4 border-b border-[#F5F5F5] font-mono text-sm text-[#13B5EA]">
-                    <a href="#" className="hover:underline">{invoice.invoiceNumber}</a>
+                    {invoice.invoiceNumber}
                   </td>
                   <td className="py-3.5 px-4 border-b border-[#F5F5F5] text-sm text-[#1A1A1A] text-right font-mono">
-                    {formatCurrency(invoice.amountDue, invoice.currency)}
+                    {formatCurrency(invoice.amountDue, invoice.currencyCode)}
                   </td>
                   <td className="py-3.5 px-4 border-b border-[#F5F5F5]">
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#E5F6FC] text-[#13B5EA]">
-                      {invoice.currency}
+                      {invoice.currencyCode}
                     </span>
-                  </td>
-                  <td className="py-3.5 px-4 border-b border-[#F5F5F5]">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(invoice.status)}`}>
-                      {invoice.status}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 border-b border-[#F5F5F5]">
-                    <button className="p-1.5 text-[#8A8A8A] hover:text-[#13B5EA] transition-colors">
-                      <Eye className="w-4 h-4" />
-                    </button>
                   </td>
                 </tr>
               ))}
@@ -373,7 +390,7 @@ export function InvoiceReversal() {
           </table>
         </div>
 
-        {sortedInvoices.length === 0 && (
+        {data.length === 0 && !isLoading && (
           <div className="py-16 text-center">
             <div className="w-16 h-16 bg-[#F5F5F5] rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-[#8A8A8A]" />
@@ -401,7 +418,7 @@ export function InvoiceReversal() {
               </div>
               <div className="h-8 w-px bg-white/30" />
               <div>
-                <span className="text-sm opacity-80">Total:</span>
+                <span className="text-sm opacity-80">Total Amount:</span>
                 <span className="ml-2 font-mono font-semibold">{formatCurrency(selectedTotal, 'USD')}</span>
               </div>
             </div>
@@ -420,7 +437,7 @@ export function InvoiceReversal() {
                 onClick={() => setShowPreview(true)}
                 className="px-6 py-2.5 bg-white text-[#13B5EA] rounded-md font-semibold text-sm hover:bg-white/90 transition-colors"
               >
-                Review & Execute
+                {isApprover ? 'Review & Execute' : 'Review & Submit'}
               </button>
             </div>
           </div>
@@ -476,19 +493,19 @@ export function InvoiceReversal() {
                         <th className="py-2 px-3 text-left text-xs font-semibold text-[#555555]">Invoice #</th>
                         <th className="py-2 px-3 text-left text-xs font-semibold text-[#555555]">Vendor</th>
                         <th className="py-2 px-3 text-right text-xs font-semibold text-[#555555]">Amount</th>
-                        <th className="py-2 px-3 text-left text-xs font-semibold text-[#555555]">Expected CN</th>
+                        <th className="py-2 px-3 text-left text-xs font-semibold text-[#555555]">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedInvoices.map(id => {
-                        const inv = invoices.find(i => i.id === id);
+                        const inv = data.find(i => i.id === id);
                         if (!inv) return null;
                         return (
                           <tr key={id} className="border-b border-[#F5F5F5]">
                             <td className="py-2 px-3 font-mono text-sm text-[#13B5EA]">{inv.invoiceNumber}</td>
                             <td className="py-2 px-3 text-sm text-[#1A1A1A]">{inv.vendorName}</td>
-                            <td className="py-2 px-3 text-sm text-right font-mono">{formatCurrency(inv.amountDue, inv.currency)}</td>
-                            <td className="py-2 px-3 font-mono text-sm text-[#555555]">CN-{inv.invoiceNumber}</td>
+                            <td className="py-2 px-3 text-sm text-right font-mono">{formatCurrency(inv.amountDue, inv.currencyCode)}</td>
+                            <td className="py-2 px-3 text-sm text-[#555555]">Create Credit Note</td>
                           </tr>
                         );
                       })}
@@ -499,9 +516,9 @@ export function InvoiceReversal() {
                   <div className="flex items-start gap-3 mt-6 p-4 bg-[#FFF4E5] rounded-lg">
                     <AlertTriangle className="w-5 h-5 text-[#FFA726] flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-[#1A1A1A]">Please review carefully</p>
+                      <p className="text-sm font-medium text-[#1A1A1A]">Ready to execute</p>
                       <p className="text-sm text-[#555555] mt-1">
-                        These reversals will create AUTHORISED credit notes in Xero. This action cannot be undone.
+                        This will create a background job to process these reversals in Xero. You can track progress in Job History.
                       </p>
                     </div>
                   </div>
@@ -516,9 +533,11 @@ export function InvoiceReversal() {
                   </button>
                   <button
                     onClick={handleExecute}
-                    className="px-6 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors"
+                    disabled={isProcessing}
+                    className="px-6 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
-                    Execute Reversals
+                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isApprover ? 'Confirm & Schedule' : 'Submit for Approval'}
                   </button>
                 </div>
               </>
@@ -527,13 +546,8 @@ export function InvoiceReversal() {
             {executionStep === 'executing' && (
               <div className="p-12 text-center">
                 <Loader2 className="w-16 h-16 text-[#13B5EA] animate-spin mx-auto mb-6" />
-                <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">Processing Reversals...</h2>
-                <p className="text-[#555555]">Please wait while we create credit notes in Xero</p>
-                <div className="mt-6 max-w-md mx-auto">
-                  <div className="h-2 bg-[#F5F5F5] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#13B5EA] rounded-full animate-pulse" style={{ width: '60%' }} />
-                  </div>
-                </div>
+                <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">Creating Job...</h2>
+                <p className="text-[#555555]">Please wait while we schedule your reversals</p>
               </div>
             )}
 
@@ -542,9 +556,10 @@ export function InvoiceReversal() {
                 <div className="w-20 h-20 bg-[#E8F5E9] rounded-full flex items-center justify-center mx-auto mb-6">
                   <Check className="w-10 h-10 text-[#3BB54A]" />
                 </div>
-                <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">Reversals Completed!</h2>
+                <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">{isApprover ? 'Job Scheduled!' : 'Job Submitted!'}</h2>
                 <p className="text-[#555555] mb-6">
-                  Successfully created {selectedInvoices.length} credit notes in Xero
+                  Successfully created Job #{createdJobId?.substring(createdJobId.length - 8).toUpperCase()}.
+                  {isApprover ? ' The worker will start processing your credit notes shortly.' : ' Waiting for approver to authorize execution.'}
                 </p>
                 <button
                   onClick={() => {

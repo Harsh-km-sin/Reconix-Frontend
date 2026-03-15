@@ -2,15 +2,14 @@
 export interface User {
   id: string;
   email: string;
-  fullName: string;
+  fullName: string | null;
   avatar?: string;
-  role: 'admin' | 'approver' | 'operator';
-  phoneNumber?: string;
-  timezone: string;
-  dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY';
-  status: 'active' | 'invited' | 'disabled';
+  role: 'ADMIN' | 'APPROVER' | 'OPERATOR';
+  phoneNumber?: string | null;
+  timezone?: string | null;
+  dateFormat?: string | null;
+  isActive: boolean;
   lastActive?: string;
-  companies: string[];
 }
 
 // Company Types
@@ -18,94 +17,109 @@ export interface Company {
   id: string;
   name: string;
   xeroTenantId: string;
-  status: 'connected' | 'sync_error' | 'token_expired';
-  lastSync: string;
-  syncCounts: {
-    invoices: number;
-    contacts: number;
-    overpayments: number;
-  };
-  defaultCurrency: string;
-  defaultBankAccount?: string;
+  xeroShortCode?: string | null;
+  baseCurrency?: string | null;
+  defaultBankAccountId?: string | null;
+  status?: 'connected' | 'sync_error' | 'token_expired'; // Computed in UI or from specialized field
+  lastSync?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 // Invoice Types
 export interface Invoice {
   id: string;
+  xeroInvoiceId: string;
   invoiceNumber: string;
-  vendorId: string;
-  vendorName: string;
-  date: string;
-  dueDate: string;
+  vendorName?: string; // Mapped from contact in backend
+  contact?: {
+    name: string;
+    xeroContactId: string;
+  };
+  invoiceDate: string;
+  dueDate: string | null;
+  status: 'DRAFT' | 'SUBMITTED' | 'AUTHORISED' | 'PAID' | 'VOIDED';
+  currencyCode: string;
+  total: number;
   amountDue: number;
-  currency: string;
-  status: 'authorised' | 'approved' | 'paid' | 'voided';
-  xeroUrl?: string;
+  amountPaid: number | null;
+  reference?: string | null;
 }
 
 // Overpayment Types
 export interface Overpayment {
   id: string;
-  overpaymentId: string;
-  vendorId: string;
-  vendorName: string;
-  paymentDate: string;
+  xeroOverpaymentId: string;
+  contact?: {
+    name: string;
+    xeroContactId: string;
+  };
+  overpaymentDate: string;
   remainingCredit: number;
-  currency: string;
-  status: 'available' | 'allocated' | 'refunded';
+  total: number;
+  currencyCode: string;
+  status: string | null;
 }
 
-// Bill Types
-export interface Bill {
-  id: string;
-  invoiceNumber: string;
-  vendorId: string;
-  vendorName: string;
-  date: string;
-  amountDue: number;
-  currency: string;
-  allocatedOverpaymentId?: string;
-}
+// Bill Types (subset of Invoice)
+export interface Bill extends Invoice { }
 
 // Job Types
-export type JobType = 'invoice_reversal' | 'overpayment_allocation' | 'overpayment_creation';
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'partial';
+export type JobType = 'INVOICE_REVERSAL' | 'OVERPAYMENT_ALLOCATION' | 'OVERPAYMENT_CREATION';
+export type JobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PARTIAL';
 
 export interface Job {
   id: string;
-  jobId: string;
-  type: JobType;
-  executedBy: string;
-  executedById: string;
-  startTime: string;
-  endTime?: string;
+  jobType: JobType;
   status: JobStatus;
+  reversalDate?: string | null;
   totalItems: number;
-  processedItems: number;
-  failedItems: number;
-  companyId: string;
-  items?: JobItem[];
+  processedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  approvedAt?: string | null;
+  createdBy?: {
+    id: string;
+    name: string | null;
+  };
+  approvedBy?: {
+    id: string;
+    name: string | null;
+  };
+  jobItems?: JobItem[];
 }
+
+export type JobItemStatus = 'PENDING' | 'PROCESSED' | 'SKIPPED' | 'FAILED';
 
 export interface JobItem {
   id: string;
-  itemNumber: string;
-  invoiceId?: string;
-  overpaymentId?: string;
-  vendorName: string;
-  amount: number;
-  status: 'success' | 'failed' | 'skipped';
-  xeroId?: string;
-  errorMessage?: string;
+  jobId: string;
+  itemType: 'INVOICE' | 'OVERPAYMENT';
+  xeroInvoiceId?: string | null;
+  xeroOverpaymentId?: string | null;
+  invoiceNumber?: string | null;
+  contactName?: string | null;
+  expectedAmount?: number | null;
+  actualAmountDue?: number | null;
+  amountMismatchAcknowledged: boolean;
+  status: JobItemStatus;
+  failureReason?: string | null;
+  failureRawError?: any;
+  executedAt?: string | null;
 }
 
 // Filter Types
 export interface InvoiceFilter {
   dateFrom?: string;
   dateTo?: string;
-  vendor?: string;
-  currencies?: string[];
-  statuses?: string[];
+  search?: string;
+  vendorId?: string;
+  currencyCode?: string;
+  status?: string;
   amountMin?: number;
   amountMax?: number;
 }
@@ -113,9 +127,8 @@ export interface InvoiceFilter {
 export interface JobFilter {
   dateFrom?: string;
   dateTo?: string;
-  type?: JobType | 'all';
-  status?: JobStatus | 'all';
-  user?: string;
+  type?: JobType | 'ALL';
+  status?: JobStatus | 'ALL';
 }
 
 // Settings Types

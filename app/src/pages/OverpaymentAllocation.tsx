@@ -1,32 +1,78 @@
-import { useState, useMemo } from 'react';
-import type { Overpayment, Bill } from '@/types';
-import { Search, CreditCard, Calendar, Check, X, AlertTriangle, Loader2 } from 'lucide-react';
-
-const overpayments: Overpayment[] = [];
-const bills: Bill[] = [];
+import { useState, useMemo, useEffect } from 'react';
+import type { Overpayment, Invoice } from '@/types';
+import { xeroService } from '@/services/xeroService';
+import { jobService } from '@/services/jobService';
+import { AlertTriangle, Loader2, RefreshCw, Search, CreditCard, Calendar, Check, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export function OverpaymentAllocation() {
-  const [selectedOverpayment, setSelectedOverpayment] = useState<string | null>(null);
+  const { user } = useAuth();
+  const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
+
+  const [overpayments, setOverpayments] = useState<Overpayment[]>([]);
+  const [bills, setBills] = useState<Invoice[]>([]);
+  const [isLoadingOps, setIsLoadingOps] = useState(true);
+  const [isLoadingBills, setIsLoadingBills] = useState(false);
+  const [selectedOverpaymentId, setSelectedOverpaymentId] = useState<string | null>(null);
   const [selectedBills, setSelectedBills] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isAllocating, setIsAllocating] = useState(false);
   const [allocationComplete, setAllocationComplete] = useState(false);
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
 
-  const filteredOverpayments = useMemo(() => {
-    return overpayments.filter(op => 
-      op.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      op.overpaymentId.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const fetchOverpayments = async () => {
+    setIsLoadingOps(true);
+    try {
+      const response = await xeroService.getOverpayments({
+        search: searchQuery,
+      });
+      setOverpayments(response.items);
+    } catch (error) {
+      console.error('Failed to fetch overpayments:', error);
+      toast.error('Failed to load overpayments');
+    } finally {
+      setIsLoadingOps(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchOverpayments();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const selectedOp = useMemo(() => {
-    return overpayments.find(op => op.id === selectedOverpayment);
-  }, [selectedOverpayment]);
+    return overpayments.find(op => op.id === selectedOverpaymentId);
+  }, [selectedOverpaymentId, overpayments]);
 
-  const matchedBills = useMemo(() => {
-    if (!selectedOp) return [];
-    return bills.filter(bill => bill.vendorId === selectedOp.vendorId);
+  const fetchBills = async (contactId: string) => {
+    setIsLoadingBills(true);
+    try {
+      const response = await xeroService.getInvoices({
+        vendorId: contactId,
+        status: 'AUTHORISED',
+      });
+      // In Xero, "Bills" are just invoices with type ACCPAY (usually handled by backend filtering or context)
+      // For this UI, we just show AUTHORISED invoices for that contact
+      setBills(response.items);
+    } catch (error) {
+      console.error('Failed to fetch bills:', error);
+      toast.error('Failed to load outstanding bills');
+    } finally {
+      setIsLoadingBills(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedOp?.contact?.xeroContactId) {
+      fetchBills(selectedOp.contact.xeroContactId);
+      setSelectedBills([]);
+    } else {
+      setBills([]);
+    }
   }, [selectedOp]);
 
   const selectedTotal = useMemo(() => {
@@ -34,7 +80,7 @@ export function OverpaymentAllocation() {
       const bill = bills.find(b => b.id === billId);
       return sum + (bill?.amountDue || 0);
     }, 0);
-  }, [selectedBills]);
+  }, [selectedBills, bills]);
 
   const remainingCredit = useMemo(() => {
     if (!selectedOp) return 0;
@@ -55,10 +101,49 @@ export function OverpaymentAllocation() {
   };
 
   const handleAllocate = async () => {
+    if (!selectedOp) return;
     setIsAllocating(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsAllocating(false);
-    setAllocationComplete(true);
+
+    try {
+      // 1. Create Job
+      const job = await jobService.createJob({
+        jobType: 'OVERPAYMENT_ALLOCATION',
+        notes: `Allocation of overpayment ${selectedOp.xeroOverpaymentId} to ${selectedBills.length} bills`
+      });
+
+      setCreatedJobId(job.id);
+
+      // 2. Add Items
+      // For overpayment allocation, each item is one allocation (Overpayment -> Invoice)
+      const items = selectedBills.map(billId => {
+        const bill = bills.find(b => b.id === billId);
+        return {
+          itemType: 'OVERPAYMENT' as const,
+          xeroOverpaymentId: selectedOp.xeroOverpaymentId,
+          xeroInvoiceId: bill?.xeroInvoiceId,
+          invoiceNumber: bill?.invoiceNumber,
+          contactName: selectedOp.contact?.name,
+          expectedAmount: bill?.amountDue
+        };
+      });
+
+      await jobService.addItems(job.id, items);
+
+      // 3. Approve Job
+      if (isApprover) {
+        await jobService.approveJob(job.id);
+        toast.success('Allocation job created and scheduled');
+      } else {
+        toast.success('Allocation job created and submitted for approval');
+      }
+
+      setAllocationComplete(true);
+    } catch (error) {
+      console.error('Allocation failed:', error);
+      toast.error('Failed to create allocation job');
+    } finally {
+      setIsAllocating(false);
+    }
   };
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -79,15 +164,24 @@ export function OverpaymentAllocation() {
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in h-[calc(100vh-140px)]">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Overpayment Allocation</h1>
-        <p className="text-[#555555]">Match overpayments to outstanding bills</p>
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Overpayment Allocation</h1>
+          <p className="text-[#555555]">Match overpayments to outstanding bills</p>
+        </div>
+        <button
+          onClick={fetchOverpayments}
+          className="flex items-center gap-2 px-4 py-2 border border-[#E0E0E0] rounded-lg text-sm font-medium hover:border-[#13B5EA] hover:text-[#13B5EA] transition-all"
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoadingOps ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
       {/* Split View */}
       <div className="flex gap-6 h-[calc(100%-80px)]">
         {/* Left Panel - Overpayments */}
-        <div className={`${selectedOverpayment ? 'w-[45%]' : 'w-full'} flex flex-col transition-all duration-300`}>
+        <div className={`${selectedOverpaymentId ? 'w-[40%]' : 'w-full'} flex flex-col transition-all duration-300`}>
           {/* Search */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8A8A]" />
@@ -101,47 +195,50 @@ export function OverpaymentAllocation() {
           </div>
 
           {/* Overpayment Cards */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
-            {filteredOverpayments.map((op) => (
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 relative">
+            {isLoadingOps && (
+              <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                <Loader2 className="w-8 h-8 text-[#13B5EA] animate-spin" />
+              </div>
+            )}
+            {overpayments.map((op) => (
               <button
                 key={op.id}
                 onClick={() => {
-                  setSelectedOverpayment(op.id);
-                  setSelectedBills([]);
+                  setSelectedOverpaymentId(op.id);
                 }}
-                className={`w-full text-left p-5 rounded-lg border transition-all duration-250 ${
-                  selectedOverpayment === op.id
-                    ? 'bg-[#E5F6FC] border-[#13B5EA] border-l-4'
-                    : 'bg-white border-[#E0E0E0] hover:border-[#13B5EA] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
-                }`}
+                className={`w-full text-left p-5 rounded-lg border transition-all duration-250 ${selectedOverpaymentId === op.id
+                  ? 'bg-[#E5F6FC] border-[#13B5EA] border-l-4'
+                  : 'bg-white border-[#E0E0E0] hover:border-[#13B5EA] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+                  }`}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-[#1A1A1A]">{op.vendorName}</h3>
+                  <h3 className="font-semibold text-[#1A1A1A]">{op.contact?.name || 'Unknown Vendor'}</h3>
                   <span className="px-2 py-0.5 bg-[#E8F5E9] text-[#3BB54A] text-xs font-semibold rounded-full">
-                    Available
+                    {op.status || 'Available'}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-[#8A8A8A] font-mono">{op.overpaymentId}</p>
+                    <p className="text-xs text-[#8A8A8A] font-mono">{op.xeroOverpaymentId}</p>
                     <div className="flex items-center gap-2 mt-1 text-xs text-[#8A8A8A]">
                       <Calendar className="w-3 h-3" />
-                      {formatDate(op.paymentDate)}
+                      {formatDate(op.overpaymentDate)}
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-[#8A8A8A]">Remaining</p>
                     <p className="text-lg font-bold text-[#3BB54A]">
-                      {formatCurrency(op.remainingCredit, op.currency)}
+                      {formatCurrency(op.remainingCredit, op.currencyCode)}
                     </p>
                   </div>
                 </div>
               </button>
             ))}
 
-            {filteredOverpayments.length === 0 && (
-              <div className="text-center py-12">
+            {!isLoadingOps && overpayments.length === 0 && (
+              <div className="text-center py-12 bg-white border border-dashed border-[#E0E0E0] rounded-lg">
                 <CreditCard className="w-12 h-12 text-[#E0E0E0] mx-auto mb-4" />
                 <p className="text-[#8A8A8A]">No overpayments found</p>
               </div>
@@ -150,16 +247,20 @@ export function OverpaymentAllocation() {
         </div>
 
         {/* Right Panel - Bills */}
-        {selectedOverpayment && selectedOp && (
-          <div className="flex-1 flex flex-col bg-white border border-[#E0E0E0] rounded-lg animate-slide-in-right">
+        {selectedOverpaymentId && selectedOp && (
+          <div className="flex-1 flex flex-col bg-white border border-[#E0E0E0] rounded-lg animate-slide-in-right relative">
+            {isLoadingBills && (
+              <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                <Loader2 className="w-8 h-8 text-[#13B5EA] animate-spin" />
+              </div>
+            )}
             {/* Header */}
             <div className="p-5 border-b border-[#E0E0E0]">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-[#1A1A1A]">Bills for {selectedOp.vendorName}</h3>
+                <h3 className="text-lg font-semibold text-[#1A1A1A]">Bills for {selectedOp.contact?.name}</h3>
                 <button
                   onClick={() => {
-                    setSelectedOverpayment(null);
-                    setSelectedBills([]);
+                    setSelectedOverpaymentId(null);
                   }}
                   className="p-1.5 text-[#8A8A8A] hover:text-[#555555] transition-colors"
                 >
@@ -167,25 +268,25 @@ export function OverpaymentAllocation() {
                 </button>
               </div>
               <p className="text-sm text-[#555555]">
-                Select bills to allocate against {selectedOp.overpaymentId}
+                Select bills to allocate against {selectedOp.xeroOverpaymentId}
               </p>
             </div>
 
             {/* Bills Table */}
             <div className="flex-1 overflow-auto custom-scrollbar">
-              {matchedBills.length > 0 ? (
+              {bills.length > 0 ? (
                 <table className="w-full">
-                  <thead className="sticky top-0 bg-white">
+                  <thead className="sticky top-0 bg-white z-[1]">
                     <tr className="border-b border-[#E0E0E0]">
                       <th className="py-3 px-4 text-left">
                         <input
                           type="checkbox"
-                          checked={selectedBills.length === matchedBills.length}
+                          checked={bills.length > 0 && selectedBills.length === bills.length}
                           onChange={() => {
-                            if (selectedBills.length === matchedBills.length) {
+                            if (selectedBills.length === bills.length) {
                               setSelectedBills([]);
                             } else {
-                              setSelectedBills(matchedBills.map(b => b.id));
+                              setSelectedBills(bills.map(b => b.id));
                             }
                           }}
                           className="w-4 h-4 border border-[#E0E0E0] rounded text-[#13B5EA] focus:ring-[#13B5EA]"
@@ -197,12 +298,11 @@ export function OverpaymentAllocation() {
                     </tr>
                   </thead>
                   <tbody>
-                    {matchedBills.map((bill) => (
+                    {bills.map((bill) => (
                       <tr
                         key={bill.id}
-                        className={`border-b border-[#F5F5F5] transition-colors ${
-                          selectedBills.includes(bill.id) ? 'bg-[#E5F6FC]' : 'hover:bg-[#FAFAFA]'
-                        }`}
+                        className={`border-b border-[#F5F5F5] transition-colors ${selectedBills.includes(bill.id) ? 'bg-[#E5F6FC]' : 'hover:bg-[#FAFAFA]'
+                          }`}
                       >
                         <td className="py-3 px-4">
                           <input
@@ -213,9 +313,9 @@ export function OverpaymentAllocation() {
                           />
                         </td>
                         <td className="py-3 px-4 font-mono text-sm text-[#13B5EA]">{bill.invoiceNumber}</td>
-                        <td className="py-3 px-4 text-sm text-[#555555]">{formatDate(bill.date)}</td>
+                        <td className="py-3 px-4 text-sm text-[#555555]">{formatDate(bill.invoiceDate)}</td>
                         <td className="py-3 px-4 text-right font-mono text-sm text-[#1A1A1A]">
-                          {formatCurrency(bill.amountDue, bill.currency)}
+                          {formatCurrency(bill.amountDue, bill.currencyCode)}
                         </td>
                       </tr>
                     ))}
@@ -235,14 +335,14 @@ export function OverpaymentAllocation() {
                   <div>
                     <p className="text-sm text-[#8A8A8A]">Selected</p>
                     <p className="text-xl font-bold text-[#1A1A1A]">
-                      {formatCurrency(selectedTotal, selectedOp.currency)}
+                      {formatCurrency(selectedTotal, selectedOp.currencyCode)}
                     </p>
                   </div>
                   <div className="h-10 w-px bg-[#E0E0E0]" />
                   <div>
                     <p className="text-sm text-[#8A8A8A]">Remaining Credit</p>
                     <p className={`text-xl font-bold ${remainingCredit >= 0 ? 'text-[#3BB54A]' : 'text-[#E53935]'}`}>
-                      {formatCurrency(remainingCredit, selectedOp.currency)}
+                      {formatCurrency(remainingCredit, selectedOp.currencyCode)}
                     </p>
                   </div>
                 </div>
@@ -282,7 +382,7 @@ export function OverpaymentAllocation() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-[#555555]">Overpayment</p>
-                        <p className="font-mono text-sm text-[#13B5EA]">{selectedOp?.overpaymentId}</p>
+                        <p className="font-mono text-sm text-[#13B5EA]">{selectedOp?.xeroOverpaymentId}</p>
                       </div>
                       <div>
                         <p className="text-sm text-[#555555]">Bills Selected</p>
@@ -291,13 +391,13 @@ export function OverpaymentAllocation() {
                       <div>
                         <p className="text-sm text-[#555555]">Total Allocation</p>
                         <p className="text-lg font-bold text-[#13B5EA]">
-                          {formatCurrency(selectedTotal, selectedOp?.currency || 'USD')}
+                          {formatCurrency(selectedTotal, selectedOp?.currencyCode || 'USD')}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-[#555555]">Remaining After</p>
                         <p className="text-lg font-bold text-[#3BB54A]">
-                          {formatCurrency(remainingCredit, selectedOp?.currency || 'USD')}
+                          {formatCurrency(remainingCredit, selectedOp?.currencyCode || 'USD')}
                         </p>
                       </div>
                     </div>
@@ -306,7 +406,7 @@ export function OverpaymentAllocation() {
                   <div className="flex items-start gap-3 p-4 bg-[#FFF4E5] rounded-lg">
                     <AlertTriangle className="w-5 h-5 text-[#FFA726] flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-[#555555]">
-                      This will allocate the overpayment against the selected bills in Xero. This action cannot be undone.
+                      This will create a background job to allocate the overpayment against the selected bills in Xero.
                     </p>
                   </div>
                 </div>
@@ -325,7 +425,7 @@ export function OverpaymentAllocation() {
                     className="px-6 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
                     {isAllocating && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {isAllocating ? 'Allocating...' : 'Confirm Allocation'}
+                    {isAllocating ? 'Creating Job...' : isApprover ? 'Confirm & Schedule' : 'Submit for Approval'}
                   </button>
                 </div>
               </>
@@ -334,15 +434,16 @@ export function OverpaymentAllocation() {
                 <div className="w-20 h-20 bg-[#E8F5E9] rounded-full flex items-center justify-center mx-auto mb-6">
                   <Check className="w-10 h-10 text-[#3BB54A]" />
                 </div>
-                <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">Allocation Complete!</h2>
+                <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">{isApprover ? 'Job Scheduled!' : 'Job Submitted!'}</h2>
                 <p className="text-[#555555] mb-6">
-                  Successfully allocated {formatCurrency(selectedTotal, selectedOp?.currency || 'USD')} across {selectedBills.length} bills
+                  Successfully created Job #{createdJobId?.substring(createdJobId.length - 8).toUpperCase()}.
+                  {isApprover ? ' The worker will process these allocations in Xero shortly.' : ' Waiting for approver to authorize execution.'}
                 </p>
                 <button
                   onClick={() => {
                     setShowConfirmModal(false);
                     setAllocationComplete(false);
-                    setSelectedOverpayment(null);
+                    setSelectedOverpaymentId(null);
                     setSelectedBills([]);
                   }}
                   className="px-6 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors"

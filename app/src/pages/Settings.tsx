@@ -4,15 +4,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { timezones, bankAccounts } from '@/constants/options';
 import { api, ApiClientError } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
-import { 
-  User as UserIcon, 
-  Lock, 
-  Bell, 
-  Building2, 
-  Globe, 
-  Users, 
-  Save, 
-  Check, 
+import {
+  User as UserIcon,
+  Lock,
+  Bell,
+  Building2,
+  Globe,
+  Users,
+  Save,
+  Check,
   Plus,
   MoreVertical,
   Mail,
@@ -98,7 +98,7 @@ export function Settings() {
           setPreferences((prev) => ({ ...prev, ...data.preferences }));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [authUser?.id]);
 
   useEffect(() => {
@@ -117,9 +117,9 @@ export function Settings() {
 
   useEffect(() => {
     if (authUser) {
-      setProfile((p) => ({ ...p, fullName: authUser.name ?? '' }));
+      setProfile((p) => ({ ...p, fullName: authUser.fullName ?? '' }));
     }
-  }, [authUser?.id, authUser?.name]);
+  }, [authUser?.id, authUser?.fullName]);
 
   useEffect(() => {
     if (activeTab !== 'users') return;
@@ -145,7 +145,7 @@ export function Settings() {
           defaultLineAmountType: data.defaultLineAmountType ?? 'exclusive',
         }));
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setCompanySettingsLoading(false));
   }, [activeTab, authCompanyId]);
 
@@ -256,6 +256,9 @@ export function Settings() {
 
   const getRoleBadge = (role: User['role']) => {
     const styles: Record<string, string> = {
+      ADMIN: 'bg-[#E5F6FC] text-[#13B5EA]',
+      APPROVER: 'bg-[#E8F5E9] text-[#3BB54A]',
+      OPERATOR: 'bg-[#FFF4E5] text-[#FFA726]',
       admin: 'bg-[#E5F6FC] text-[#13B5EA]',
       approver: 'bg-[#E8F5E9] text-[#3BB54A]',
       operator: 'bg-[#FFF4E5] text-[#FFA726]',
@@ -263,7 +266,7 @@ export function Settings() {
     return styles[role] || 'bg-[#F5F5F5] text-[#8A8A8A]';
   };
 
-  const getStatusBadge = (status: User['status']) => {
+  const getStatusBadge = (status: 'active' | 'invited' | 'disabled') => {
     const styles: Record<string, string> = {
       active: 'bg-[#E8F5E9] text-[#3BB54A]',
       invited: 'bg-[#FFF4E5] text-[#FFA726]',
@@ -310,11 +313,10 @@ export function Settings() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-[#E5F6FC] text-[#13B5EA] border-l-4 border-l-[#13B5EA]'
-                    : 'text-[#555555] hover:bg-[#F5F5F5] border-l-4 border-l-transparent'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium transition-colors ${activeTab === tab.id
+                  ? 'bg-[#E5F6FC] text-[#13B5EA] border-l-4 border-l-[#13B5EA]'
+                  : 'text-[#555555] hover:bg-[#F5F5F5] border-l-4 border-l-transparent'
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
@@ -329,7 +331,7 @@ export function Settings() {
           {activeTab === 'profile' && (
             <div className="bg-white border border-[#E0E0E0] rounded-lg p-8">
               <h2 className="text-lg font-semibold text-[#1A1A1A] mb-6">User Profile</h2>
-              
+
               {/* Avatar */}
               <div className="flex items-center gap-6 mb-8">
                 <div className="relative">
@@ -434,7 +436,7 @@ export function Settings() {
           {activeTab === 'password' && (
             <div className="bg-white border border-[#E0E0E0] rounded-lg p-8">
               <h2 className="text-lg font-semibold text-[#1A1A1A] mb-6">Change Password</h2>
-              
+
               <div className="space-y-6 max-w-md">
                 <div>
                   <label className="block text-sm font-medium text-[#555555] mb-1.5">Current Password</label>
@@ -483,7 +485,7 @@ export function Settings() {
           {activeTab === 'notifications' && (
             <div className="bg-white border border-[#E0E0E0] rounded-lg p-8">
               <h2 className="text-lg font-semibold text-[#1A1A1A] mb-6">Notification Preferences</h2>
-              
+
               <div className="space-y-4">
                 {[
                   { id: 'job_complete', label: 'Job completed', description: 'Get notified when a job finishes successfully' },
@@ -523,7 +525,7 @@ export function Settings() {
           {activeTab === 'company' && (
             <div className="bg-white border border-[#E0E0E0] rounded-lg p-8">
               <h2 className="text-lg font-semibold text-[#1A1A1A] mb-6">Company Settings</h2>
-              
+
               <div className="space-y-6 max-w-md">
                 <div>
                   <label className="block text-sm font-medium text-[#555555] mb-1.5">Company Name</label>
@@ -686,12 +688,12 @@ export function Settings() {
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getRoleBadge((user.role as User['role']) ?? 'operator')}`}>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getRoleBadge((user.role as User['role']) ?? 'OPERATOR')}`}>
                             {user.role ?? '—'}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge((user.status as User['status']) ?? 'active')}`}>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge((user.status as 'active' | 'invited' | 'disabled') ?? 'active')}`}>
                             {user.status ?? 'active'}
                           </span>
                         </td>

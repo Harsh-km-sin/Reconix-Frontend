@@ -10,6 +10,7 @@ export type AuthState = {
   companies: CompanyOption[];
   companyId: string | null;
   role: string;
+  activeTenantId: string | null;
   lastAuthError: string | null;
 };
 
@@ -21,6 +22,7 @@ export const initialAuthState: AuthState = {
   companies: [],
   companyId: null,
   role: "",
+  activeTenantId: null,
   lastAuthError: null,
 };
 
@@ -37,6 +39,7 @@ export const authSlice = createSlice({
       state.companies = companies;
       state.companyId = companyId;
       state.role = role;
+      state.activeTenantId = action.payload.activeTenantId ?? null;
       state.lastAuthError = null;
     },
     setAuthLoading: (state) => {
@@ -56,9 +59,19 @@ export const authSlice = createSlice({
         state.user = { ...state.user, ...action.payload };
       }
     },
+    setActiveTenant: (state, action: { payload: string | null }) => {
+      state.activeTenantId = action.payload;
+    },
   },
 });
 
-export const { setAuth, setAuthLoading, setAuthError, clearAuthError, clearAuth, updateProfile } =
-  authSlice.actions;
+export const {
+  setAuth,
+  setAuthLoading,
+  setAuthError,
+  clearAuthError,
+  clearAuth,
+  updateProfile,
+  setActiveTenant,
+} = authSlice.actions;
 export const authReducer = authSlice.reducer;

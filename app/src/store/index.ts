@@ -16,6 +16,7 @@ function getPreloadedAuth() {
       companies: stored.companies,
       companyId: stored.companyId,
       role: stored.role,
+      activeTenantId: stored.activeTenantId ?? null,
       lastAuthError: null,
     };
   }
@@ -33,7 +34,7 @@ export const store = configureStore({
 });
 
 store.subscribe(() => {
-  const { user, permissions, companies, companyId, role } = store.getState().auth;
+  const { user, permissions, companies, companyId, role, activeTenantId } = store.getState().auth;
   if (user) {
     saveStoredAuth({
       user,
@@ -41,6 +42,7 @@ store.subscribe(() => {
       companyId,
       permissions,
       companies,
+      activeTenantId,
     });
   } else {
     clearStoredAuth();

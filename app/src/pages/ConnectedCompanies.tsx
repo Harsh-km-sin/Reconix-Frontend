@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { api } from '@/lib/api';
+import { setActiveTenant as setActiveTenantAction } from '@/store/authSlice';
+import { setActiveTenant as setActiveTenantApi } from '@/lib/api';
+import type { RootState } from '@/store';
+import { toast } from 'react-hot-toast';
 import {
   Plus,
   RefreshCw,
@@ -14,7 +20,14 @@ import {
   Unlink,
 } from 'lucide-react';
 
-type CompanyItem = { companyId: string; companyName: string; role?: string };
+type CompanyItem = {
+  tenantId: string;
+  tenantName: string;
+  tenantType: string;
+  connectedAt: string;
+  lastSyncedAt: string | null;
+  isActive: boolean;
+};
 
 export function ConnectedCompanies() {
   const [companies, setCompanies] = useState<CompanyItem[]>([]);
@@ -32,33 +45,108 @@ export function ConnectedCompanies() {
     fullHistorical: false,
   });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dispatch = useDispatch();
+  const activeTenantId = useSelector((state: RootState) => state.auth.activeTenantId);
+
   useEffect(() => {
+    // 1. Fetch connections
     api
-      .get<CompanyItem[]>('companies')
+      .get<CompanyItem[]>('xero/connections')
       .then(setCompanies)
       .catch(() => setCompanies([]))
       .finally(() => setLoading(false));
-  }, []);
+
+    // 2. Handle success redirect from Xero
+    if (searchParams.get('connected') === 'true') {
+      const tenant = searchParams.get('tenant');
+      toast.success(`Connected to ${tenant} successfully`);
+
+      // Clear params without page reload
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('connected');
+      newParams.delete('tenant');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleConnect = async () => {
+    try {
+      const { authUrl } = await api.get<{ authUrl: string }>('xero/connect');
+      window.location.href = authUrl;
+    } catch (err) {
+      toast.error('Failed to start Xero connection');
+    }
+  };
+
+  const handleDisconnect = async (tenantId: string) => {
+    if (!window.confirm('Are you sure you want to disconnect this organization? This will stop all synchronization.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`xero/connections/${tenantId}`);
+      setCompanies(prev => prev.filter(c => c.tenantId !== tenantId));
+      if (activeTenantId === tenantId) {
+        dispatch(setActiveTenantAction(null));
+        setActiveTenantApi(null);
+      }
+      toast.success('Organization disconnected');
+    } catch (err) {
+      toast.error('Failed to disconnect');
+    }
+  };
+
+  const selectActiveTenant = (tenantId: string) => {
+    dispatch(setActiveTenantAction(tenantId));
+    setActiveTenantApi(tenantId);
+    toast.success('Active organization switched');
+  };
 
   const handleSync = async () => {
+    if (!selectedCompany) return;
+
     setIsSyncing(true);
     setSyncProgress(0);
-    
-    // Simulate sync progress
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      setSyncProgress(i);
+    setSyncComplete(false);
+
+    try {
+      const response = await api.post<{ jobId: string }>(`xero/sync/${selectedCompany.tenantId}`, {});
+      const { jobId } = response;
+
+      // Start polling
+      const pollInterval = setInterval(async () => {
+        try {
+          const status = await api.get<{ progress: number; status: string }>(`xero/sync/status/${jobId}`);
+          setSyncProgress(status.progress);
+
+          if (status.status === 'completed') {
+            clearInterval(pollInterval);
+            setIsSyncing(false);
+            setSyncComplete(true);
+            // Refresh companies list to get new lastSyncedAt
+            api.get<CompanyItem[]>('xero/connections').then(setCompanies);
+          } else if (status.status === 'failed') {
+            clearInterval(pollInterval);
+            setIsSyncing(false);
+            toast.error('Sync failed. Please try again.');
+          }
+        } catch (err) {
+          clearInterval(pollInterval);
+          setIsSyncing(false);
+          toast.error('Failed to poll sync status');
+        }
+      }, 2000);
+    } catch (err) {
+      setIsSyncing(false);
+      toast.error('Failed to start sync');
+
     }
-    
-    setIsSyncing(false);
-    setSyncComplete(true);
   };
 
-  const getStatusBadge = () => ({ style: 'bg-[#E8F5E9] text-[#3BB54A]', label: 'Connected' });
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
-  };
+  // const formatNumber = (num: number) => {
+  //   return new Intl.NumberFormat('en-US').format(num);
+  // };
 
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
@@ -68,7 +156,10 @@ export function ConnectedCompanies() {
           <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Connected Companies</h1>
           <p className="text-[#555555]">Manage your Xero integrations and sync status</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors">
+        <button
+          onClick={handleConnect}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Connect New Company
         </button>
@@ -84,96 +175,111 @@ export function ConnectedCompanies() {
         <div className="bg-white border border-[#E0E0E0] rounded-lg p-12 text-center text-[#8A8A8A]">
           <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p className="font-medium text-[#555555]">No companies yet</p>
-          <p className="text-sm mt-1">Your assigned companies will appear here.</p>
+          <p className="text-sm mt-1">Connect your Xero organization to get started.</p>
         </div>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {companies.map((company) => {
-          const status = getStatusBadge();
-          return (
-            <div
-              key={company.companyId}
-              className="bg-white border border-[#E0E0E0] rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-250"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#13B5EA] rounded-lg flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-white" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {companies.map((company) => {
+            const isActive = activeTenantId === company.tenantId;
+            return (
+              <div
+                key={company.tenantId}
+                className={`bg-white border ${isActive ? 'border-[#13B5EA] ring-1 ring-[#13B5EA]' : 'border-[#E0E0E0]'} rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-250`}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#13B5EA] rounded-lg flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#1A1A1A]">{company.tenantName}</h3>
+                      <p className="text-xs text-[#8A8A8A] font-mono">{company.tenantId.slice(0, 8)}...</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-[#1A1A1A]">{company.companyName}</h3>
-                    <p className="text-xs text-[#8A8A8A] font-mono">{company.companyId}</p>
-                  </div>
+                  {isActive ? (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#E8F5E9] text-[#3BB54A] flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Active
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => selectActiveTenant(company.tenantId)}
+                      className="text-xs text-[#13B5EA] hover:underline"
+                    >
+                      Select as Active
+                    </button>
+                  )}
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${status.style}`}>
-                  {status.label}
-                </span>
-              </div>
 
-              {/* Sync Info */}
-              <div className="flex items-center gap-2 text-sm text-[#555555] mb-4">
-                <RefreshCw className="w-4 h-4" />
-                Last sync: —
-              </div>
-
-              {/* Sync Counts */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
-                  <FileText className="w-4 h-4 text-[#13B5EA] mx-auto mb-1" />
-                  <p className="text-lg font-bold text-[#1A1A1A]">—</p>
-                  <p className="text-xs text-[#8A8A8A]">Invoices</p>
-                </div>
-                <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
-                  <Users className="w-4 h-4 text-[#3BB54A] mx-auto mb-1" />
-                  <p className="text-lg font-bold text-[#1A1A1A]">—</p>
-                  <p className="text-xs text-[#8A8A8A]">Contacts</p>
-                </div>
-                <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
-                  <CreditCard className="w-4 h-4 text-[#FFA726] mx-auto mb-1" />
-                  <p className="text-lg font-bold text-[#1A1A1A]">—</p>
-                  <p className="text-xs text-[#8A8A8A]">OPs</p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => {
-                    setSelectedCompany(company);
-                    setShowSyncModal(true);
-                    setSyncComplete(false);
-                    setSyncProgress(0);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 border border-[#13B5EA] text-[#13B5EA] rounded-md text-sm font-medium hover:bg-[#E5F6FC] transition-colors"
-                >
+                {/* Sync Info */}
+                <div className="flex items-center gap-2 text-sm text-[#555555] mb-4">
                   <RefreshCw className="w-4 h-4" />
-                  Sync Now
-                </button>
-                <div className="relative group">
-                  <button className="p-2 text-[#8A8A8A] hover:text-[#555555] transition-colors">
-                    <MoreVertical className="w-5 h-5" />
+                  Last sync: {company.lastSyncedAt ? new Date(company.lastSyncedAt).toLocaleString() : 'Never'}
+                </div>
+
+                {/* Sync Counts */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
+                    <FileText className="w-4 h-4 text-[#13B5EA] mx-auto mb-1" />
+                    <p className="text-lg font-bold text-[#1A1A1A]">—</p>
+                    <p className="text-xs text-[#8A8A8A]">Invoices</p>
+                  </div>
+                  <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
+                    <Users className="w-4 h-4 text-[#3BB54A] mx-auto mb-1" />
+                    <p className="text-lg font-bold text-[#1A1A1A]">—</p>
+                    <p className="text-xs text-[#8A8A8A]">Contacts</p>
+                  </div>
+                  <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
+                    <CreditCard className="w-4 h-4 text-[#FFA726] mx-auto mb-1" />
+                    <p className="text-lg font-bold text-[#1A1A1A]">—</p>
+                    <p className="text-xs text-[#8A8A8A]">OPs</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      setSelectedCompany(company);
+                      setShowSyncModal(true);
+                      setSyncComplete(false);
+                      setSyncProgress(0);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 border border-[#13B5EA] text-[#13B5EA] rounded-md text-sm font-medium hover:bg-[#E5F6FC] transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Sync Now
                   </button>
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E0E0E0] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#555555] hover:bg-[#F5F5F5] transition-colors">
-                      <ExternalLink className="w-4 h-4" />
-                      View Sync Log
+                  <div className="relative group">
+                    <button className="p-2 text-[#8A8A8A] hover:text-[#555555] transition-colors">
+                      <MoreVertical className="w-5 h-5" />
                     </button>
-                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#555555] hover:bg-[#F5F5F5] transition-colors">
-                      <RefreshCw className="w-4 h-4" />
-                      Re-authenticate
-                    </button>
-                    <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#E53935] hover:bg-[#FFEBEE] transition-colors">
-                      <Unlink className="w-4 h-4" />
-                      Disconnect
-                    </button>
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E0E0E0] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#555555] hover:bg-[#F5F5F5] transition-colors">
+                        <ExternalLink className="w-4 h-4" />
+                        View Sync Log
+                      </button>
+                      <button
+                        onClick={handleConnect}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#555555] hover:bg-[#F5F5F5] transition-colors"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Re-authenticate
+                      </button>
+                      <button
+                        onClick={() => handleDisconnect(company.tenantId)}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#E53935] hover:bg-[#FFEBEE] transition-colors"
+                      >
+                        <Unlink className="w-4 h-4" />
+                        Disconnect
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Sync Modal */}
@@ -183,12 +289,12 @@ export function ConnectedCompanies() {
             {!isSyncing && !syncComplete && (
               <>
                 <div className="p-6 border-b border-[#E0E0E0]">
-                  <h2 className="text-xl font-semibold text-[#1A1A1A]">Sync {selectedCompany.companyName}</h2>
+                  <h2 className="text-xl font-semibold text-[#1A1A1A]">Sync {selectedCompany.tenantName}</h2>
                 </div>
 
                 <div className="p-6">
                   <p className="text-sm text-[#555555] mb-4">Select data to sync:</p>
-                  
+
                   <div className="space-y-3">
                     <label className="flex items-center gap-3 p-3 bg-[#FAFAFA] rounded-lg cursor-pointer hover:bg-[#F5F5F5] transition-colors">
                       <input
@@ -298,19 +404,10 @@ export function ConnectedCompanies() {
                 </div>
                 <h2 className="text-xl font-semibold text-[#1A1A1A] mb-2">Sync Complete!</h2>
                 <p className="text-[#555555] mb-6">
-                  Successfully synced data from {selectedCompany.companyName}
+                  Successfully synced data from {selectedCompany.tenantName}
                 </p>
                 <div className="bg-[#FAFAFA] rounded-lg p-4 mb-6 max-w-xs mx-auto">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-[#8A8A8A]">New Invoices</p>
-                      <p className="font-semibold text-[#3BB54A]">+12</p>
-                    </div>
-                    <div>
-                      <p className="text-[#8A8A8A]">New Contacts</p>
-                      <p className="font-semibold text-[#3BB54A]">+5</p>
-                    </div>
-                  </div>
+                  <p className="text-sm text-[#555555]">Your accounts, contacts, and invoices are now up to date with Xero.</p>
                 </div>
                 <button
                   onClick={() => {

@@ -5,6 +5,7 @@
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 const TOKEN_KEY = "reconix_token";
+const TENANT_KEY = "reconix_active_tenant";
 
 /** Backend success envelope */
 export interface ApiSuccess<T> {
@@ -42,6 +43,18 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function getActiveTenant(): string | null {
+  return localStorage.getItem(TENANT_KEY);
+}
+
+export function setActiveTenant(tenantId: string | null): void {
+  if (tenantId) {
+    localStorage.setItem(TENANT_KEY, tenantId);
+  } else {
+    localStorage.removeItem(TENANT_KEY);
+  }
+}
+
 function getHeaders(includeAuth: boolean): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -49,6 +62,10 @@ function getHeaders(includeAuth: boolean): HeadersInit {
   if (includeAuth) {
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+  const tenantId = getActiveTenant();
+  if (tenantId) {
+    headers["X-Active-Tenant"] = tenantId;
   }
   return headers;
 }

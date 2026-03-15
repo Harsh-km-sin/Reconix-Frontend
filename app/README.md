@@ -1,73 +1,95 @@
-# React + TypeScript + Vite
+# Reconix Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Reconix is a modern web application built with React and TypeScript, powered by Vite and styled with Tailwind CSS and shadcn/ui.
 
-Currently, two official plugins are available:
+## 🚀 Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Framework:** [React 19](https://react.dev/)
+- **Build Tool:** [Vite 7](https://vitejs.dev/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS v3.4](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
+- **State Management:** [Redux Toolkit](https://redux-toolkit.js.org/) & [React Redux](https://react-redux.js.org/)
+- **Routing:** [React Router DOM v7](https://reactrouter.com/)
+- **Forms:** [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Charts:** [Recharts](https://recharts.org/)
 
-## React Compiler
+## 📂 Project Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+src/
+├── components/     # Reusable UI components (shadcn/ui)
+├── constants/      # Global constants
+├── hooks/          # Custom React hooks
+├── lib/            # Utility functions and library configurations
+├── pages/          # Page components
+├── sections/       # Complex page sections
+├── store/          # Redux store and slices
+├── types/          # TypeScript type definitions
+├── App.tsx         # Root component
+├── main.tsx        # Entry point
+└── index.css       # Global styles
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🛠️ Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Prerequisites
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Node.js 20 or higher
+- npm or yarn
+
+### Installation
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Set up environment variables:
+   Copy `.env.example` to `.env` and update the values:
+   ```bash
+   cp .env.example .env
+   ```
+
+### Development
+
+Run the development server:
+```bash
+npm run dev
 ```
+
+### Build
+
+Build the application for production:
+```bash
+npm run build
+```
+
+### Linting
+
+Run ESLint to check for code quality issues:
+```bash
+npm run lint
+```
+
+## 🏁 Phase 1 Status - ✅ COMPLETE
+
+- [x] UI Shells & Layout
+- [x] Authentication (Login/Register/Set Password)
+- [x] Connected Companies Page
+- [x] Sync UI (Manual trigger + Progress polling)
+
+## 🏁 Phase 2 Status - 🚧 IN PROGRESS
+
+- [x] Jobs Dashboard (Shell UI)
+- [x] Invoice Reversal Builder (Shell UI)
+- [x] Overpayment Allocation Builder (Shell UI)
+- [x] Job History & Detail (Shell UI)
+- [ ] API Integration (Live fetching of data)
+- [ ] Job Submission Logic
+- [ ] Approval Flow Integration
+- [ ] Real-time Progress Polling for Jobs
+
+## 📄 License
+
+This project is private and intended for internal use.

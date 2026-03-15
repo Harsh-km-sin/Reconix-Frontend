@@ -3,20 +3,20 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import type { User, CompanyOption } from '@/types';
 import { navItems } from '@/lib/nav';
 import { hasModuleAccess } from '@/lib/permissions';
-import { 
-  Home, 
-  RefreshCw, 
-  CreditCard, 
-  PlusCircle, 
-  ClipboardList, 
-  Building2, 
+import {
+  Home,
+  RefreshCw,
+  CreditCard,
+  PlusCircle,
+  ClipboardList,
+  Building2,
   Settings,
-  ChevronLeft, 
-  ChevronRight, 
-  Bell, 
-  Search, 
-  LogOut, 
-  User as UserIcon, 
+  ChevronLeft,
+  ChevronRight,
+  Bell,
+  Search,
+  LogOut,
+  User as UserIcon,
   HelpCircle,
   Check,
 } from 'lucide-react';
@@ -74,10 +74,9 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex">
       {/* Sidebar */}
-      <aside 
-        className={`fixed left-0 top-0 h-full bg-[#FAFAFA] border-r border-[#E0E0E0] transition-all duration-250 z-50 ${
-          sidebarCollapsed ? 'w-16' : 'w-60'
-        }`}
+      <aside
+        className={`fixed left-0 top-0 h-full bg-[#FAFAFA] border-r border-[#E0E0E0] transition-all duration-250 z-50 ${sidebarCollapsed ? 'w-16' : 'w-60'
+          }`}
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-[#E0E0E0]">
@@ -101,20 +100,18 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
               <button
                 key={item.id}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${
-                  isActive(item.path)
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${isActive(item.path)
                     ? 'bg-[#E5F6FC] text-[#13B5EA]'
                     : 'text-[#555555] hover:bg-[#F5F5F5] hover:text-[#1A1A1A]'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 {!sidebarCollapsed && (
                   <>
                     <span className="flex-1 text-left">{item.label}</span>
                     {item.badge && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        item.id === 'history' ? 'bg-[#FFEBEE] text-[#E53935]' : 'bg-[#E5F6FC] text-[#13B5EA]'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.id === 'history' ? 'bg-[#FFEBEE] text-[#E53935]' : 'bg-[#E5F6FC] text-[#13B5EA]'
+                        }`}>
                         {item.badge}
                       </span>
                     )}
@@ -136,11 +133,10 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
               <button
                 key={item.id}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${
-                  isActive(item.path)
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${isActive(item.path)
                     ? 'bg-[#E5F6FC] text-[#13B5EA]'
                     : 'text-[#555555] hover:bg-[#F5F5F5] hover:text-[#1A1A1A]'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 {!sidebarCollapsed && (
@@ -169,11 +165,10 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
               <button
                 key={item.id}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${
-                  isActive(item.path)
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${isActive(item.path)
                     ? 'bg-[#E5F6FC] text-[#13B5EA]'
                     : 'text-[#555555] hover:bg-[#F5F5F5] hover:text-[#1A1A1A]'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 {!sidebarCollapsed && (
@@ -297,21 +292,20 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
                     {notifications.length === 0 ? (
                       <div className="px-4 py-6 text-center text-sm text-[#8A8A8A]">No notifications</div>
                     ) : (
-                    notifications.map(notif => (
-                      <div key={notif.id} className="px-4 py-3 hover:bg-[#F5F5F5] transition-colors border-b border-[#F5F5F5] last:border-b-0">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-2 h-2 rounded-full mt-1.5 ${
-                            notif.type === 'success' ? 'bg-[#3BB54A]' : 
-                            notif.type === 'error' ? 'bg-[#E53935]' : 'bg-[#13B5EA]'
-                          }`} />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-[#1A1A1A]">{notif.title}</p>
-                            <p className="text-xs text-[#555555] mt-0.5">{notif.message}</p>
-                            <p className="text-xs text-[#8A8A8A] mt-1">{notif.time}</p>
+                      notifications.map(notif => (
+                        <div key={notif.id} className="px-4 py-3 hover:bg-[#F5F5F5] transition-colors border-b border-[#F5F5F5] last:border-b-0">
+                          <div className="flex items-start gap-3">
+                            <div className={`w-2 h-2 rounded-full mt-1.5 ${notif.type === 'success' ? 'bg-[#3BB54A]' :
+                                notif.type === 'error' ? 'bg-[#E53935]' : 'bg-[#13B5EA]'
+                              }`} />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-[#1A1A1A]">{notif.title}</p>
+                              <p className="text-xs text-[#555555] mt-0.5">{notif.message}</p>
+                              <p className="text-xs text-[#8A8A8A] mt-1">{notif.time}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))
                     )}
                   </div>
                   <div className="border-t border-[#E0E0E0] mt-2 pt-2 px-4">
@@ -328,8 +322,8 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
                 className="flex items-center gap-2 p-1.5 rounded-md hover:bg-[#F5F5F5] transition-colors"
               >
                 <img
-                  src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}
-                  alt={user?.fullName}
+                  src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
+                  alt={user?.fullName || 'User avatar'}
                   className="w-8 h-8 rounded-full"
                 />
                 <ChevronLeft className={`w-4 h-4 text-[#8A8A8A] transition-transform ${showUserMenu ? '-rotate-90' : 'rotate-90'}`} />
