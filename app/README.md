@@ -79,16 +79,22 @@ npm run lint
 - [x] Connected Companies Page
 - [x] Sync UI (Manual trigger + Progress polling)
 
-## 🏁 Phase 2 Status - 🚧 IN PROGRESS
+## 🏁 Phase 2 Status - ✅ COMPLETE
+- [x] Jobs Dashboard & Modal-based Detail view
+- [x] Live API Integration for Invoices/Overpayments
+- [x] Real-time Progress Polling for Running Jobs
+- [x] Role-Based Action Visibility (e.g., Approve button for Admins)
 
-- [x] Jobs Dashboard (Shell UI)
-- [x] Invoice Reversal Builder (Shell UI)
-- [x] Overpayment Allocation Builder (Shell UI)
-- [x] Job History & Detail (Shell UI)
-- [ ] API Integration (Live fetching of data)
-- [ ] Job Submission Logic
-- [ ] Approval Flow Integration
-- [ ] Real-time Progress Polling for Jobs
+## 🏁 Phase 3 Status - ✅ COMPLETE
+- [x] Multi-tenant Company Switcher
+- [x] Team Management & Invitation flow
+- [x] Permission-aware UI (RBAC enforcement)
+
+## 🏁 Phase 4 Status - ✅ COMPLETE
+- [x] **Security**: Multi-Factor Authentication (MFA) Setup & Challenge flows
+- [x] **Audit**: Advanced Audit Log Explorer with detailed JSON views
+- [x] **Intelligence**: Pre-flight Validation UI with warning acknowledgement
+- [x] **Productivity**: Manual Job Builder with inline editing and search
 
 ## 📄 License
 
