@@ -4,9 +4,9 @@ import { Login } from '@/pages/Login';
 import { Register } from '@/pages/Register';
 import { SetPassword } from '@/pages/SetPassword';
 import { Dashboard } from '@/pages/Dashboard';
-import { InvoiceReversal } from '@/pages/InvoiceReversal';
-import { OverpaymentAllocation } from '@/pages/OverpaymentAllocation';
-import { CreateOverpayment } from '@/pages/CreateOverpayment';
+import { JobBuilderSelection } from '@/pages/JobBuilderSelection';
+import { JobUploadBuilder } from '@/pages/JobUploadBuilder';
+import { JobManualBuilder } from '@/pages/JobManualBuilder';
 import { JobHistory } from '@/pages/JobHistory';
 import { ConnectedCompanies } from '@/pages/ConnectedCompanies';
 import { Settings } from '@/pages/Settings';
@@ -71,9 +71,9 @@ function App() {
       <Layout user={user} onLogout={handleLogout} permissions={permissions} companies={companies} companyId={companyId}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/reversal" element={<InvoiceReversal />} />
-          <Route path="/allocation" element={<OverpaymentAllocation />} />
-          <Route path="/create-overpayment" element={<CreateOverpayment />} />
+          <Route path="/jobs/new" element={<JobBuilderSelection />} />
+          <Route path="/jobs/new/upload" element={<JobUploadBuilder />} />
+          <Route path="/jobs/new/manual" element={<JobManualBuilder />} />
           <Route path="/history" element={<JobHistory />} />
           <Route path="/companies" element={<ConnectedCompanies />} />
           <Route path="/settings" element={<Settings />} />
