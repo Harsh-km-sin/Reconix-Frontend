@@ -18,10 +18,10 @@ export function useAuth() {
   const auth = useAppSelector((state) => state.auth);
 
   const login = useCallback(
-    async (credentials: LoginCredentials): Promise<boolean> => {
+    async (credentials: LoginCredentials): Promise<{ success: boolean; mfaRequired?: boolean; userId?: string }> => {
       dispatch(setAuthLoading());
       try {
-        const data = await api.post<AuthResponseData>(
+        const data = await api.post<AuthResponseData & { mfaRequired?: boolean; user: { id: string } }>(
           "auth/login",
           {
             email: credentials.email,
@@ -29,13 +29,46 @@ export function useAuth() {
           },
           false
         );
+
+        if (data.mfaRequired) {
+          dispatch(setAuthError("")); // Clear loading, no error yet
+          return { success: false, mfaRequired: true, userId: data.user.id };
+        }
+
+        if (!data.token) {
+           throw new Error("Missing auth token from server");
+        }
+
+        setToken(data.token);
+        const stored = mapBackendToUser(data);
+        saveStoredAuth(stored);
+        dispatch(setAuth(stored));
+        return { success: true };
+      } catch (err) {
+        const message = err instanceof ApiClientError ? err.message : "Login failed";
+        dispatch(setAuthError(message));
+        return { success: false };
+      }
+    },
+    [dispatch]
+  );
+
+  const verifyMFALogin = useCallback(
+    async (userId: string, token: string): Promise<boolean> => {
+      dispatch(setAuthLoading());
+      try {
+        const data = await api.post<AuthResponseData>("auth/mfa/login-verify", {
+          userId,
+          token,
+        }, false);
+        
         setToken(data.token);
         const stored = mapBackendToUser(data);
         saveStoredAuth(stored);
         dispatch(setAuth(stored));
         return true;
       } catch (err) {
-        const message = err instanceof ApiClientError ? err.message : "Login failed";
+        const message = err instanceof ApiClientError ? err.message : "MFA verification failed";
         dispatch(setAuthError(message));
         return false;
       }
@@ -89,6 +122,7 @@ export function useAuth() {
     updateProfile: updateProfileAction,
     setAuthFromResponse,
     clearLastAuthError,
+    verifyMFALogin,
   };
 }
 

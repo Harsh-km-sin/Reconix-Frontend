@@ -10,24 +10,40 @@ import { JobManualBuilder } from '@/pages/JobManualBuilder';
 import { JobHistory } from '@/pages/JobHistory';
 import { ConnectedCompanies } from '@/pages/ConnectedCompanies';
 import { Settings } from '@/pages/Settings';
+import { AuditLogPage } from '@/pages/AuditLog';
 import { Layout } from '@/components/Layout';
 import { ToastContainer } from '@/components/ToastContainer';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 
+import { MFALoginChallenge } from '@/components/MFALoginChallenge';
+
 function App() {
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
-  const { user, isAuthenticated, isLoading, login, logout, lastAuthError, permissions, companies, companyId } = useAuth();
+  const [authView, setAuthView] = useState<'login' | 'register' | 'mfa'>('login');
+  const [mfaUserId, setMfaUserId] = useState<string | null>(null);
+  const { user, isAuthenticated, isLoading, login, logout, lastAuthError, permissions, companies, companyId, verifyMFALogin } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
 
   const handleLogin = async (credentials: { email: string; password: string; rememberMe?: boolean }) => {
     const result = await login(credentials);
-    if (result) {
+    if (result.success) {
       success('Welcome back!', 'You have successfully signed in.');
+    } else if (result.mfaRequired && result.userId) {
+      setMfaUserId(result.userId);
+      setAuthView('mfa');
     } else {
       error('Sign in failed', lastAuthError ?? 'Please check your credentials and try again.');
     }
-    return result;
+    return result.success;
+  };
+
+  const handleMFAVerify = async (token: string) => {
+    if (!mfaUserId) return false;
+    const successResult = await verifyMFALogin(mfaUserId, token);
+    if (successResult) {
+      success('Welcome back!', 'MFA verification successful.');
+    }
+    return successResult;
   };
 
   const handleLogout = () => {
@@ -49,6 +65,23 @@ function App() {
 
   // Show auth screens if not authenticated
   if (!isAuthenticated) {
+    if (authView === 'mfa' && mfaUserId) {
+      return (
+        <>
+          <MFALoginChallenge
+            userId={mfaUserId}
+            onVerify={handleMFAVerify}
+            onCancel={() => {
+              setAuthView('login');
+              setMfaUserId(null);
+            }}
+            error={lastAuthError}
+          />
+          <ToastContainer toasts={toasts} onRemove={removeToast} />
+        </>
+      );
+    }
+
     return (
       <>
         {authView === 'login' ? (
@@ -77,6 +110,7 @@ function App() {
           <Route path="/history" element={<JobHistory />} />
           <Route path="/companies" element={<ConnectedCompanies />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/audit" element={<AuditLogPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

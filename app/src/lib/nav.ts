@@ -5,5 +5,6 @@ export const navItems: NavItem[] = [
   { id: 'new-job', label: 'Create Job', icon: 'PlusCircle', path: '/jobs/new', section: 'main', module: 'auth' },
   { id: 'history', label: 'Job History', icon: 'ClipboardList', path: '/history', section: 'operations', module: 'jobs' },
   { id: 'companies', label: 'Connected Companies', icon: 'Building2', path: '/companies', section: 'config', module: 'companies' },
+  { id: 'audit', label: 'Audit Log', icon: 'Activity', path: '/audit', section: 'config', module: 'admin' },
   { id: 'settings', label: 'Settings', icon: 'Settings', path: '/settings', section: 'config', module: 'auth' },
 ];
