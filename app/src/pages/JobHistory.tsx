@@ -14,7 +14,8 @@ import {
   Check,
   AlertTriangle,
   Clock,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,6 +36,10 @@ export function JobHistory() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'items' | 'audit'>('summary');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [jobToCancel, setJobToCancel] = useState<string | null>(null);
+  const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchJobs = async (isPoll = false) => {
     if (!isPoll) setIsLoading(true);
@@ -53,6 +58,21 @@ export function JobHistory() {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      setIsDeleting(true);
+      await jobService.deleteJob(jobId);
+      toast.success('Job deleted successfully');
+      setJobToDelete(null);
+      fetchJobs();
+    } catch (err: any) {
+      console.error('Failed to delete job:', err);
+      toast.error(err.response?.data?.error?.message || 'Failed to delete job');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -109,6 +129,41 @@ export function JobHistory() {
       toast.error('Failed to approve job');
     } finally {
       setIsApproving(false);
+    }
+  };
+
+  const handleRetryJob = async (jobId: string) => {
+    setIsRetrying(true);
+    try {
+      await jobService.retryJob(jobId);
+      toast.success('Retry started!');
+      if (selectedJob?.id === jobId) {
+        setSelectedJob(prev => prev ? { ...prev, status: 'RUNNING' } : null);
+      }
+      fetchJobs();
+    } catch (error) {
+      console.error('Failed to retry job:', error);
+      toast.error('Failed to retry job');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    setIsRetrying(true);
+    try {
+      await jobService.cancelJob(jobId);
+      toast.success('Job cleared');
+      setJobToCancel(null);
+      if (selectedJob?.id === jobId) {
+        setSelectedJob(prev => prev ? { ...prev, status: 'FAILED' } : null);
+      }
+      fetchJobs();
+    } catch (error) {
+      console.error('Failed to cancel job:', error);
+      toast.error('Failed to clear job');
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -320,7 +375,15 @@ export function JobHistory() {
                 <td className="py-3.5 px-4">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setSelectedJob(job)}
+                      onClick={async () => {
+                        setSelectedJob(job);
+                        try {
+                          const fullJob = await jobService.getJob(job.id);
+                          setSelectedJob(fullJob);
+                        } catch (err) {
+                          console.error('Failed to fetch job details:', err);
+                        }
+                      }}
                       className="p-1.5 text-[#8A8A8A] hover:text-[#13B5EA] transition-colors"
                       title="View Details"
                     >
@@ -328,10 +391,32 @@ export function JobHistory() {
                     </button>
                     {job.status === 'FAILED' && (
                       <button
-                        className="p-1.5 text-[#8A8A8A] hover:text-[#3BB54A] transition-colors"
+                        onClick={() => handleRetryJob(job.id)}
+                        disabled={isRetrying}
+                        className="p-1.5 text-[#8A8A8A] hover:text-[#3BB54A] transition-colors disabled:opacity-50"
                         title="Retry"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                      </button>
+                    )}
+                    {job.status === 'RUNNING' && (
+                      <button
+                        onClick={() => setJobToCancel(job.id)}
+                        disabled={isRetrying || isDeleting}
+                        className="p-1.5 text-[#8A8A8A] hover:text-[#E53935] transition-colors disabled:opacity-50"
+                        title="Clear Stuck Job"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {(job.status === 'PENDING' || job.status === 'FAILED') && (
+                      <button
+                        onClick={() => setJobToDelete(job.id)}
+                        disabled={isRetrying || isDeleting}
+                        className="p-1.5 text-[#8A8A8A] hover:text-[#E53935] transition-colors disabled:opacity-50"
+                        title="Delete Job"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -350,7 +435,7 @@ export function JobHistory() {
       </div>
 
       {/* Pagination */}
-      {data && data.totalPages > 1 && (
+      {data && data.totalPages && data.totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
           <p className="text-sm text-[#555555]">
             Page {data.page} of {data.totalPages}
@@ -364,7 +449,7 @@ export function JobHistory() {
               Previous
             </button>
             <button
-              disabled={page === data.totalPages}
+              disabled={page === (data.totalPages ?? 0)}
               onClick={() => setPage(p => p + 1)}
               className="px-4 py-2 border rounded-md text-sm disabled:opacity-50"
             >
@@ -473,19 +558,19 @@ export function JobHistory() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-[#555555]">Items Processed</span>
                         <span className="text-sm font-medium text-[#1A1A1A]">
-                          {selectedJob.processedCount} / {selectedJob.totalItems}
+                          {(selectedJob.processedCount || 0) + (selectedJob.failedCount || 0) + (selectedJob.skippedCount || 0)} / {selectedJob.totalItems || 1}
                         </span>
                       </div>
                       <div className="h-2 bg-[#E0E0E0] rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[#13B5EA] rounded-full transition-all duration-500"
-                          style={{ width: `${(selectedJob.processedCount / (selectedJob.totalItems || 1)) * 100}%` }}
+                          style={{ width: `${(((selectedJob.processedCount || 0) + (selectedJob.failedCount || 0) + (selectedJob.skippedCount || 0)) / (selectedJob.totalItems || 1)) * 100}%` }}
                         />
                       </div>
                       <div className="flex items-center gap-6 mt-4">
                         <div className="flex items-center gap-2">
                           <Check className="w-4 h-4 text-[#3BB54A]" />
-                          <span className="text-sm text-[#555555]">{selectedJob.processedCount - selectedJob.failedCount} Success</span>
+                          <span className="text-sm text-[#555555]">{selectedJob.processedCount || 0} Success</span>
                         </div>
                         {selectedJob.failedCount > 0 && (
                           <div className="flex items-center gap-2">
@@ -526,6 +611,7 @@ export function JobHistory() {
                         <th className="py-2 px-3 text-right text-xs font-semibold text-[#555555]">Expected</th>
                         <th className="py-2 px-3 text-right text-xs font-semibold text-[#555555]">Actual</th>
                         <th className="py-2 px-3 text-left text-xs font-semibold text-[#555555]">Status</th>
+                        <th className="py-2 px-3 text-left text-xs font-semibold text-[#555555]">Details</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -554,6 +640,15 @@ export function JobHistory() {
                               {item.status}
                             </span>
                           </td>
+                          <td className="py-2 px-3 min-w-[200px]">
+                            {item.failureReason ? (
+                              <p className="text-[10px] text-[#E53935] font-medium leading-tight break-words">
+                                {item.failureReason}
+                              </p>
+                            ) : (
+                              <span className="text-[10px] text-[#8A8A8A] italic">No issues</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                       {(!selectedJob.jobItems || selectedJob.jobItems.length === 0) && (
@@ -570,38 +665,49 @@ export function JobHistory() {
 
               {activeTab === 'audit' && (
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 bg-[#FAFAFA] rounded-lg">
-                    <Clock className="w-4 h-4 text-[#8A8A8A] mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm text-[#1A1A1A]">Job created</p>
-                      <p className="text-xs text-[#8A8A8A]">{formatDateTime(selectedJob.createdAt)}</p>
-                    </div>
-                  </div>
-                  {selectedJob.startedAt && (
-                    <div className="flex items-start gap-3 p-3 bg-[#FAFAFA] rounded-lg">
-                      <Clock className="w-4 h-4 text-[#8A8A8A] mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-[#1A1A1A]">Job execution started</p>
-                        <p className="text-xs text-[#8A8A8A]">{formatDateTime(selectedJob.startedAt)}</p>
+                  {selectedJob.auditLogs && selectedJob.auditLogs.length > 0 ? (
+                    selectedJob.auditLogs
+                      .filter(log => {
+                        const majorEvents = [
+                          'JOB_CREATED',
+                          'JOB_ITEMS_ADDED',
+                          'JOB_APPROVED',
+                          'JOB_EXECUTION_STARTED',
+                          'JOB_EXECUTION_COMPLETED',
+                          'JOB_EXECUTION_FAILED',
+                          'JOB_ITEM_FAILED' // Always keep failures!
+                        ];
+                        return majorEvents.includes(log.action);
+                      })
+                      .map((log) => (
+                      <div key={log.id} className="flex items-start gap-3 p-3 bg-[#FAFAFA] rounded-lg">
+                        {log.action.includes('FAILED') || log.action.includes('ERROR') ? (
+                          <AlertTriangle className="w-4 h-4 text-[#E53935] mt-0.5" />
+                        ) : log.action.includes('COMPLETED') || 
+                            log.action.includes('APPROVED') || 
+                            log.action.includes('PROCESSED') || 
+                            log.action.includes('CREATED') || 
+                            log.action.includes('STARTED') || 
+                            log.action.includes('ADDED') ||
+                            log.action.includes('ALLOCATED') ? (
+                          <Check className="w-4 h-4 text-[#3BB54A] mt-0.5" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-[#8A8A8A] mt-0.5" />
+                        )}
+                        <div className="flex-1">
+                          <p className="text-sm text-[#1A1A1A]">
+                            {log.action.replace(/_/g, ' ')}
+                            {log.resourceType === 'JobItem' ? ' (Item)' : ''}
+                          </p>
+                          <p className="text-xs text-[#8A8A8A]">
+                            {formatDateTime(log.createdAt)} {log.user?.name ? `by ${log.user.name}` : '(System)'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {selectedJob.completedAt && (
-                    <div className="flex items-start gap-3 p-3 bg-[#FAFAFA] rounded-lg">
-                      <Clock className="w-4 h-4 text-[#8A8A8A] mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-[#1A1A1A]">Job execution completed</p>
-                        <p className="text-xs text-[#8A8A8A]">{formatDateTime(selectedJob.completedAt)}</p>
-                      </div>
-                    </div>
-                  )}
-                  {selectedJob.approvedAt && (
-                    <div className="flex items-start gap-3 p-3 bg-[#FAFAFA] rounded-lg">
-                      <Check className="w-4 h-4 text-[#3BB54A] mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-[#1A1A1A]">Job approved</p>
-                        <p className="text-xs text-[#8A8A8A]">{formatDateTime(selectedJob.approvedAt)} by {selectedJob.approvedBy?.name || 'System'}</p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-sm text-[#8A8A8A] italic">
+                      No detailed audit logs available.
                     </div>
                   )}
                 </div>
@@ -619,9 +725,13 @@ export function JobHistory() {
                   {isApproving && <Loader2 className="w-4 h-4 animate-spin" />}
                   Approve & Execute
                 </button>
-              ) : selectedJob.status === 'FAILED' ? (
-                <button className="px-4 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4" />
+              ) : selectedJob.status === 'FAILED' || selectedJob.status === 'PARTIAL' ? (
+                <button 
+                  onClick={() => handleRetryJob(selectedJob.id)}
+                  disabled={isRetrying}
+                  className="px-4 py-2.5 bg-[#13B5EA] text-white rounded-md text-sm font-medium hover:bg-[#0E92BC] transition-colors flex items-center gap-2 disabled:opacity-50 shadow-md"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
                   Retry Failed Items
                 </button>
               ) : (
@@ -639,6 +749,80 @@ export function JobHistory() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {jobToCancel && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in border border-[#E0E0E0]">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-[#FFEBEE] rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-[#E53935]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-[#1A1A1A]">Clear Stuck Job?</h3>
+                <p className="text-sm text-[#555555]">
+                  This will mark the job as <span className="font-semibold">FAILED</span> so you can retry it. 
+                  Only do this if the job has been "RUNNING" for an unusually long time.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setJobToCancel(null)}
+                disabled={isRetrying}
+                className="px-4 py-2 text-[#555555] font-medium hover:bg-[#F5F5F5] rounded-md transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleCancelJob(jobToCancel)}
+                disabled={isRetrying}
+                className="px-6 py-2 bg-[#E53935] text-white font-bold rounded-md hover:bg-[#D32F2F] transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2"
+              >
+                {isRetrying && <Loader2 className="w-4 h-4 animate-spin" />}
+                Yes, Clear Job
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {jobToDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in border border-[#E0E0E0]">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-[#FFEBEE] rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-6 h-6 text-[#E53935]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-[#1A1A1A]">Delete Job Permanently?</h3>
+                <p className="text-sm text-[#555555]">
+                  This will remove the job and all its history. <span className="font-semibold text-[#E53935]">This action cannot be undone.</span>
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setJobToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-[#555555] font-medium hover:bg-[#F5F5F5] rounded-md transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteJob(jobToDelete)}
+                disabled={isDeleting}
+                className="px-6 py-2 bg-[#E53935] text-white font-bold rounded-md hover:bg-[#D32F2F] transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {isDeleting ? 'Deleting...' : 'Delete Job'}
+              </button>
             </div>
           </div>
         </div>

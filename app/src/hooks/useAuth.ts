@@ -108,6 +108,22 @@ export function useAuth() {
     dispatch(clearAuthError());
   }, [dispatch]);
 
+  const switchCompany = useCallback(
+    async (companyId: string): Promise<boolean> => {
+      try {
+        const data = await api.post<AuthResponseData>("auth/switch-company", { companyId });
+        setToken(data.token);
+        const stored = mapBackendToUser(data);
+        saveStoredAuth(stored);
+        dispatch(setAuth(stored));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [dispatch]
+  );
+
   return {
     user: auth.user,
     isAuthenticated: auth.isAuthenticated,
@@ -122,6 +138,7 @@ export function useAuth() {
     updateProfile: updateProfileAction,
     setAuthFromResponse,
     clearLastAuthError,
+    switchCompany,
     verifyMFALogin,
   };
 }

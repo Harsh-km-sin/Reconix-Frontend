@@ -91,6 +91,16 @@ export interface Job {
     name: string | null;
   };
   jobItems?: JobItem[];
+  auditLogs?: AuditLog[];
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  createdAt: string;
+  user?: { name: string | null } | null;
 }
 
 export type JobItemStatus = 'PENDING' | 'PROCESSED' | 'SKIPPED' | 'FAILED';

@@ -20,13 +20,19 @@ import {
   Unlink,
 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/useAuth';
+
 type CompanyItem = {
+  companyId: string;
   tenantId: string;
   tenantName: string;
   tenantType: string;
   connectedAt: string;
   lastSyncedAt: string | null;
   isActive: boolean;
+  invoiceCount: number;
+  contactCount: number;
+  overpaymentCount: number;
 };
 
 export function ConnectedCompanies() {
@@ -48,6 +54,8 @@ export function ConnectedCompanies() {
   const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
   const activeTenantId = useSelector((state: RootState) => state.auth.activeTenantId);
+  const { switchCompany, companyId: activeCompanyId } = useAuth();
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   useEffect(() => {
     // 1. Fetch connections
@@ -97,10 +105,17 @@ export function ConnectedCompanies() {
     }
   };
 
-  const selectActiveTenant = (tenantId: string) => {
-    dispatch(setActiveTenantAction(tenantId));
-    setActiveTenantApi(tenantId);
-    toast.success('Active organization switched');
+  const selectActiveTenant = async (companyId: string) => {
+    if (!companyId) return;
+    setSwitchingId(companyId);
+    const ok = await switchCompany(companyId);
+    setSwitchingId(null);
+    if (ok) {
+      toast.success('Active organization switched');
+      window.location.reload();
+    } else {
+      toast.error('Failed to switch active organization');
+    }
   };
 
   const handleSync = async () => {
@@ -180,7 +195,7 @@ export function ConnectedCompanies() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companies.map((company) => {
-            const isActive = activeTenantId === company.tenantId;
+            const isActive = activeCompanyId === company.companyId || activeTenantId === company.tenantId;
             return (
               <div
                 key={company.tenantId}
@@ -203,10 +218,11 @@ export function ConnectedCompanies() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => selectActiveTenant(company.tenantId)}
-                      className="text-xs text-[#13B5EA] hover:underline"
+                      onClick={() => selectActiveTenant(company.companyId)}
+                      disabled={switchingId !== null}
+                      className="text-xs text-[#13B5EA] hover:underline disabled:opacity-50"
                     >
-                      Select as Active
+                      {switchingId === company.companyId ? 'Switching...' : 'Select as Active'}
                     </button>
                   )}
                 </div>
@@ -221,17 +237,17 @@ export function ConnectedCompanies() {
                 <div className="grid grid-cols-3 gap-3 mb-6">
                   <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
                     <FileText className="w-4 h-4 text-[#13B5EA] mx-auto mb-1" />
-                    <p className="text-lg font-bold text-[#1A1A1A]">—</p>
+                    <p className="text-lg font-bold text-[#1A1A1A]">{company.invoiceCount || 0}</p>
                     <p className="text-xs text-[#8A8A8A]">Invoices</p>
                   </div>
                   <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
                     <Users className="w-4 h-4 text-[#3BB54A] mx-auto mb-1" />
-                    <p className="text-lg font-bold text-[#1A1A1A]">—</p>
+                    <p className="text-lg font-bold text-[#1A1A1A]">{company.contactCount || 0}</p>
                     <p className="text-xs text-[#8A8A8A]">Contacts</p>
                   </div>
                   <div className="bg-[#FAFAFA] rounded-lg p-3 text-center">
                     <CreditCard className="w-4 h-4 text-[#FFA726] mx-auto mb-1" />
-                    <p className="text-lg font-bold text-[#1A1A1A]">—</p>
+                    <p className="text-lg font-bold text-[#1A1A1A]">{company.overpaymentCount || 0}</p>
                     <p className="text-xs text-[#8A8A8A]">OPs</p>
                   </div>
                 </div>

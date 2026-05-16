@@ -21,7 +21,7 @@ import { MFALoginChallenge } from '@/components/MFALoginChallenge';
 function App() {
   const [authView, setAuthView] = useState<'login' | 'register' | 'mfa'>('login');
   const [mfaUserId, setMfaUserId] = useState<string | null>(null);
-  const { user, isAuthenticated, isLoading, login, logout, lastAuthError, permissions, companies, companyId, verifyMFALogin } = useAuth();
+  const { user, isAuthenticated, isLoading, login, logout, lastAuthError, permissions, companies, companyId, verifyMFALogin, switchCompany } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
 
   const handleLogin = async (credentials: { email: string; password: string; rememberMe?: boolean }) => {
@@ -101,7 +101,7 @@ function App() {
   // Authenticated: main app with routing
   return (
     <>
-      <Layout user={user} onLogout={handleLogout} permissions={permissions} companies={companies} companyId={companyId}>
+      <Layout user={user} onLogout={handleLogout} permissions={permissions} companies={companies} companyId={companyId} onSwitchCompany={switchCompany}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs/new" element={<JobBuilderSelection />} />

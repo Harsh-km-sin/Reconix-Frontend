@@ -48,7 +48,7 @@ export const xeroService = {
         if (options.isSupplier !== undefined) params.append('isSupplier', options.isSupplier.toString());
         if (options.isCustomer !== undefined) params.append('isCustomer', options.isCustomer.toString());
 
-        return api.get<any[]>(`xero/contacts?${params.toString()}`);
+        return api.get<ListResponse<any>>(`xero/contacts?${params.toString()}`);
     },
 
     getAccounts: async (options: { search?: string; type?: string } = {}) => {
@@ -56,6 +56,6 @@ export const xeroService = {
         if (options.search) params.append('search', options.search);
         if (options.type) params.append('type', options.type);
 
-        return api.get<any[]>(`xero/accounts?${params.toString()}`);
+        return api.get<ListResponse<any>>(`xero/accounts?${params.toString()}`);
     }
 };

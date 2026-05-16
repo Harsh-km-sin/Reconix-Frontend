@@ -157,6 +157,14 @@ export function Dashboard() {
       path: '/settings',
       color: '#555555',
     },
+    {
+      id: 'audit',
+      title: 'Audit Log',
+      description: 'Review security events and system changes',
+      icon: ClipboardList,
+      path: '/audit',
+      color: '#E53935',
+    },
   ];
 
   const quickStats: QuickStat[] = [

@@ -17,7 +17,7 @@ export interface ListResponse<T> {
     total: number;
     page: number;
     limit: number;
-    totalPages: number;
+    totalPages?: number;
 }
 
 export const jobService = {
@@ -63,5 +63,13 @@ export const jobService = {
 
     removeItem: async (jobId: string, itemId: string) => {
         return api.delete<void>(`jobs/${jobId}/items/${itemId}`);
+    },
+    
+    retryJob: async (jobId: string) => {
+        return api.post<void>(`jobs/${jobId}/retry`);
+    },
+    
+    cancelJob: async (jobId: string) => {
+        return api.post<void>(`jobs/${jobId}/cancel`);
     }
 };

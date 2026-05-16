@@ -5,12 +5,15 @@ import * as XLSX from 'xlsx';
 import { FileUp, FileSpreadsheet, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExcelColumnMapper } from '@/components/ExcelColumnMapper';
+import { JobReviewScreen } from '@/components/JobReviewScreen';
 
 export function JobUploadBuilder() {
     const [searchParams] = useSearchParams();
     const type = searchParams.get('type') || 'Unknown';
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showReview, setShowReview] = useState(false);
+    const [mappedData, setMappedData] = useState<any[]>([]);
     const [fileData, setFileData] = useState<{
         fileName: string;
         sheets: string[];
@@ -105,10 +108,10 @@ export function JobUploadBuilder() {
         }
     };
 
-    const handleMappingComplete = (mappedData: any[]) => {
-        console.log('Mapped Job Data:', mappedData);
-        toast.success(`Successfully mapped ${mappedData.length} rows`);
-        // TODO: Transition to Unified Review Screen
+    const handleMappingComplete = (data: any[]) => {
+        setMappedData(data);
+        setShowReview(true);
+        toast.success(`Successfully mapped ${data.length} rows`);
     };
 
 
@@ -185,6 +188,12 @@ export function JobUploadBuilder() {
                         </div>
                     </div>
                 </div>
+            ) : showReview ? (
+                <JobReviewScreen 
+                    jobType={type}
+                    jobData={mappedData}
+                    onBack={() => setShowReview(false)}
+                />
             ) : (
                 <ExcelColumnMapper
                     fileData={fileData}

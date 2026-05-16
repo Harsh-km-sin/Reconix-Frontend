@@ -18,7 +18,6 @@ import {
   LogOut,
   User as UserIcon,
   HelpCircle,
-  Check,
   Activity,
 } from 'lucide-react';
 
@@ -32,6 +31,8 @@ interface LayoutProps {
   companies?: CompanyOption[];
   /** Current company id from auth */
   companyId?: string | null;
+  /** Called when user clicks a different company; receives target companyId */
+  onSwitchCompany?: (companyId: string) => Promise<boolean>;
 }
 
 // Icon mapping
@@ -46,11 +47,12 @@ const iconMap: Record<string, React.ElementType> = {
   Activity,
 };
 
-export function Layout({ children, user, onLogout, permissions = [], companies = [], companyId = null }: LayoutProps) {
+export function Layout({ children, user, onLogout, permissions = [], companies = [], companyId = null, onSwitchCompany }: LayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCompanySwitcher, setShowCompanySwitcher] = useState(false);
+  const [switchingCompany, setSwitchingCompany] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -215,35 +217,61 @@ export function Layout({ children, user, onLogout, permissions = [], companies =
           <div className="relative">
             <button
               onClick={() => setShowCompanySwitcher(!showCompanySwitcher)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[#F5F5F5] transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F5F5F5] transition-all bg-white border border-transparent hover:border-[#E0E0E0] shadow-sm hover:shadow-md h-10"
             >
-              <span className="font-medium text-sm text-[#1A1A1A]">{currentCompanyName}</span>
-              <ChevronLeft className={`w-4 h-4 text-[#8A8A8A] transition-transform ${showCompanySwitcher ? '-rotate-90' : 'rotate-90'}`} />
+              <div className="w-6 h-6 rounded bg-[#E5F6FC] flex items-center justify-center">
+                 <Building2 className="w-3.5 h-3.5 text-[#13B5EA]" />
+              </div>
+              <span className="font-bold text-sm text-[#1A1A1A]">{currentCompanyName}</span>
+              <ChevronRight className={`w-4 h-4 text-[#8A8A8A] transition-transform ${showCompanySwitcher ? 'rotate-90' : ''}`} />
             </button>
 
             {showCompanySwitcher && (
-              <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-[#E0E0E0] py-2 animate-fade-in">
-                <div className="px-3 py-2 text-xs font-semibold text-[#8A8A8A] uppercase">Select Company</div>
-                {companies.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-[#8A8A8A]">No companies assigned</div>
-                ) : (
-                  companies.map((company) => (
-                    <button
-                      key={company.companyId}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#F5F5F5] transition-colors"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-[#3BB54A]" />
-                      <span className="text-sm text-[#1A1A1A]">{company.companyName}</span>
-                      {company.companyId === companyId && <Check className="w-4 h-4 text-[#13B5EA] ml-auto" />}
-                    </button>
-                  ))
-                )}
-                <div className="border-t border-[#E0E0E0] mt-2 pt-2 px-3">
+              <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-[#E0E0E0] py-3 animate-slide-up z-[60] overflow-hidden">
+                <div className="px-4 pb-2 mb-2 border-b border-[#F5F5F5] flex items-center justify-between">
+                  <span className="text-[10px] font-black text-[#8A8A8A] uppercase tracking-[0.1em]">Organizations</span>
+                  <span className="text-[10px] font-bold text-[#3BB54A] bg-[#E8F5E9] px-2 py-0.5 rounded-full">{companies.length} Organizations</span>
+                </div>
+                <div className="max-h-64 overflow-y-auto scrollbar-thin">
+                  {companies.length === 0 ? (
+                    <div className="px-4 py-4 text-center text-sm text-[#8A8A8A] italic">No companies assigned</div>
+                  ) : (
+                    companies.map((company) => (
+                      <button
+                        key={company.companyId}
+                        disabled={switchingCompany !== null}
+                        onClick={async () => {
+                          if (company.companyId === companyId) { setShowCompanySwitcher(false); return; }
+                          setSwitchingCompany(company.companyId);
+                          const ok = onSwitchCompany ? await onSwitchCompany(company.companyId) : false;
+                          setSwitchingCompany(null);
+                          if (ok) { setShowCompanySwitcher(false); window.location.reload(); }
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-[#E5F6FC] transition-colors relative group ${company.companyId === companyId ? 'bg-[#FAFAFA]' : ''}`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${company.companyId === companyId ? 'bg-[#13B5EA] text-white shadow-lg' : 'bg-[#F5F5F5] text-[#8A8A8A] group-hover:bg-white group-hover:text-[#13B5EA]'}`}>
+                          {switchingCompany === company.companyId ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : company.companyName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className={`text-sm font-bold truncate ${company.companyId === companyId ? 'text-[#1A1A1A]' : 'text-[#555555] group-hover:text-[#1A1A1A]'}`}>
+                            {company.companyName}
+                          </p>
+                          <p className="text-[10px] text-[#8A8A8A] font-medium">Xero Organization</p>
+                        </div>
+                        {company.companyId === companyId && (
+                           <div className="w-1.5 h-1.5 rounded-full bg-[#13B5EA] shadow-[0_0_8px_#13B5EA]" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+                <div className="mt-2 px-3 pt-2 border-t border-[#F5F5F5]">
                   <button
-                    onClick={() => navigate('/companies')}
-                    className="text-sm text-[#13B5EA] hover:underline"
+                    onClick={() => { navigate('/companies'); setShowCompanySwitcher(false); }}
+                    className="w-full h-9 flex items-center justify-center gap-2 text-xs font-bold text-[#13B5EA] hover:bg-[#E5F6FC] rounded-lg transition-colors"
                   >
-                    Manage Companies
+                    <Settings className="w-3.5 h-3.5" />
+                    Organization Settings
                   </button>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   AlertTriangle, 
@@ -34,8 +34,18 @@ export function JobReviewScreen({
     const [acknowledged, setAcknowledged] = useState(false);
     const [reversalDate, setReversalDate] = useState(new Date().toISOString().split('T')[0]);
     const [jobName, setJobName] = useState('');
+    const [itemConfigs, setItemConfigs] = useState<Record<number, { type: 'FULL' | 'PARTIAL', amount: number }>>({});
 
-    const totalAmount = jobData.reduce((sum, item) => sum + Number(item.Amount || 0), 0);
+    // Initialize configs
+    useEffect(() => {
+        const configs: Record<number, { type: 'FULL' | 'PARTIAL', amount: number }> = {};
+        jobData.forEach((item, i) => {
+            configs[i] = { type: 'FULL', amount: Number(item.Amount || 0) };
+        });
+        setItemConfigs(configs);
+    }, [jobData]);
+
+    const totalAmount = Object.values(itemConfigs).reduce((sum, cfg) => sum + cfg.amount, 0);
 
     // Run live validation on load
     useEffect(() => {
@@ -46,8 +56,11 @@ export function JobReviewScreen({
                     id: `item-${i}`,
                     itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE_REVERSAL' : 'OVERPAYMENT_ALLOCATION',
                     invoiceNumber: row['Invoice Number'],
+                    xeroInvoiceId: row.xeroInvoiceId,
                     expectedAmount: Number(row.Amount),
-                    contactName: row['Vendor Name']
+                    // Only pass contactName when there's no xeroInvoiceId (e.g., Excel upload)
+                    // If we have the exact Xero ID, the name check is redundant and noisy
+                    contactName: row.xeroInvoiceId ? undefined : row['Vendor Name'],
                 }));
 
                 const response = await validationService.runValidation({ items: itemsToValidate });
@@ -91,12 +104,20 @@ export function JobReviewScreen({
                 notes: jobName || `${jobType.replace('_', ' ')} manual build`
             });
 
-            const items = jobData.map(row => ({
-                itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE' : 'OVERPAYMENT',
-                invoiceNumber: row['Invoice Number'],
-                contactName: row['Vendor Name'],
-                expectedAmount: Number(row.Amount)
-            }));
+            const items = jobData.map((row, i) => {
+                const config = itemConfigs[i];
+                return {
+                    itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE' : 'OVERPAYMENT',
+                    invoiceNumber: row['Invoice Number'],
+                    xeroInvoiceId: row.dbInvoiceId,
+                    contactName: row['Vendor Name'],
+                    expectedAmount: Number(row.Amount),
+                    reversalConfig: jobType === 'INVOICE_REVERSAL' ? {
+                        reversalType: config.type,
+                        partialAmount: config.type === 'PARTIAL' ? config.amount : undefined
+                    } : undefined
+                };
+            });
 
             await jobService.addItems(job.id, items);
 
@@ -217,52 +238,124 @@ export function JobReviewScreen({
                 {/* Right Col: Data Review */}
                 <div className="lg:col-span-2">
                     <div className="border border-[#E0E0E0] rounded-xl overflow-hidden shadow-sm">
-                        <div className="overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin">
                             <table className="w-full text-sm">
                                 <thead className="bg-[#FAFAFA] sticky top-0 shadow-sm border-b border-[#E0E0E0] z-10">
                                     <tr>
-                                        <th className="py-3 px-4 text-left font-semibold text-[#555555]">Status</th>
+                                        <th className="py-3 px-4 text-left font-semibold text-[#555555] w-12">#</th>
                                         <th className="py-3 px-4 text-left font-semibold text-[#555555]">Reference</th>
-                                        <th className="py-3 px-4 text-left font-semibold text-[#555555]">Vendor</th>
-                                        <th className="py-3 px-4 text-right font-semibold text-[#555555]">Amount</th>
-                                        <th className="py-3 px-4 text-left font-semibold text-[#555555]">Issues</th>
+                                        <th className="py-3 px-4 text-left font-semibold text-[#555555]">Mode</th>
+                                        <th className="py-3 px-4 text-right font-semibold text-[#555555]">Reversal Amount</th>
+                                        <th className="py-3 px-4 text-left font-semibold text-[#555555]">Validation Status</th>
+                                        <th className="py-3 px-4 text-left font-semibold text-[#555555]">Issues/Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#F5F5F5]">
-                                    {jobData.map((row, i) => {
-                                        const report = validationReports[`item-${i}`];
-                                        return (
-                                            <tr key={i} className={`hover:bg-[#FAFAFA] transition-colors ${report?.status === 'INVALID' ? 'bg-[#FFEBEE]/30' : ''}`}>
-                                                <td className="py-3 px-4">
-                                                    {isValidating ? (
-                                                        <Loader2 className="w-4 h-4 text-[#13B5EA] animate-spin" />
-                                                    ) : report?.status === 'VALID' ? (
-                                                        <CheckCircle2 className="w-4 h-4 text-[#3BB54A]" />
-                                                    ) : report?.status === 'WARNING' ? (
-                                                        <AlertCircle className="w-4 h-4 text-[#FFA726]" />
-                                                    ) : (
-                                                        <XCircle className="w-4 h-4 text-[#E53935]" />
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-4 font-mono text-[#13B5EA] whitespace-nowrap">
-                                                    {row['Invoice Number'] || row['Reference'] || '—'}
-                                                </td>
-                                                <td className="py-3 px-4 text-[#1A1A1A] font-medium">{row['Vendor Name'] || '—'}</td>
-                                                <td className="py-3 px-4 text-right font-mono text-[#1A1A1A]">
-                                                    {formatCurrency(Number(row.Amount) || 0)}
-                                                </td>
-                                                <td className="py-3 px-4 max-w-[200px]">
-                                                    {report?.errors.map((err, idx) => (
-                                                        <p key={idx} className="text-[10px] text-[#E53935] font-semibold">{err}</p>
-                                                    ))}
-                                                    {report?.warnings.map((warn, idx) => (
-                                                        <p key={idx} className="text-[10px] text-[#FFA726] font-semibold">{warn}</p>
-                                                    ))}
-                                                    {report?.status === 'VALID' && <span className="text-[10px] text-[#3BB54A]">Matched</span>}
+                                    {Object.entries(
+                                        jobData.reduce((acc: Record<string, any[]>, row, i) => {
+                                            const vendor = row['Vendor Name'] || 'Other / Unknown';
+                                            if (!acc[vendor]) acc[vendor] = [];
+                                            acc[vendor].push({ ...row, originalIndex: i });
+                                            return acc;
+                                        }, {})
+                                    ).map(([vendor, vendorItems]) => (
+                                        <React.Fragment key={vendor}>
+                                            <tr className="bg-[#F8F9FA] border-y border-[#E0E0E0]">
+                                                <td colSpan={5} className="py-2.5 px-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-[#13B5EA]" />
+                                                        <span className="font-bold text-[#1A1A1A] uppercase text-[11px] tracking-widest">{vendor}</span>
+                                                        <span className="text-[10px] text-[#8A8A8A] font-medium ml-2">({vendorItems.length} items)</span>
+                                                    </div>
                                                 </td>
                                             </tr>
-                                        );
-                                    })}
+                                            {vendorItems.map((item) => {
+                                                const report = validationReports[`item-${item.originalIndex}`];
+                                                return (
+                                                    <tr key={item.originalIndex} className={`hover:bg-[#FAFAFA] transition-colors ${report?.status === 'INVALID' ? 'bg-[#FFEBEE]/30' : ''}`}>
+                                                        <td className="py-3 px-4 text-[#8A8A8A] text-xs">{item.originalIndex + 1}</td>
+                                                        <td className="py-3 px-4 font-mono text-[#13B5EA] whitespace-nowrap text-xs">
+                                                            {item['Invoice Number'] || item['Reference'] || '—'}
+                                                        </td>
+                                                        <td className="py-3 px-4">
+                                                            {jobType === 'INVOICE_REVERSAL' ? (
+                                                                <select
+                                                                    value={itemConfigs[item.originalIndex]?.type || 'FULL'}
+                                                                    onChange={(e) => setItemConfigs(prev => ({
+                                                                        ...prev,
+                                                                        [item.originalIndex]: { 
+                                                                            ...prev[item.originalIndex], 
+                                                                            type: e.target.value as 'FULL' | 'PARTIAL',
+                                                                            amount: e.target.value === 'FULL' ? Number(item.Amount) : prev[item.originalIndex].amount
+                                                                        }
+                                                                    }))}
+                                                                    className="bg-[#F5F5F5] border border-[#E0E0E0] rounded px-2 py-1 text-[10px] focus:outline-none focus:border-[#13B5EA]"
+                                                                >
+                                                                    <option value="FULL">Full</option>
+                                                                    <option value="PARTIAL">Partial</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className="text-[10px] text-[#8A8A8A]">Default</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 px-4 text-right">
+                                                            {itemConfigs[item.originalIndex]?.type === 'PARTIAL' ? (
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <span className="text-[10px] text-[#555555]">$</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        value={itemConfigs[item.originalIndex]?.amount}
+                                                                        onChange={(e) => setItemConfigs(prev => ({
+                                                                            ...prev,
+                                                                            [item.originalIndex]: { ...prev[item.originalIndex], amount: Number(e.target.value) }
+                                                                        }))}
+                                                                        className="w-20 text-right bg-white border border-[#13B5EA] rounded px-1 py-0.5 text-xs font-mono"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <span className="font-mono text-[#1A1A1A] text-xs">
+                                                                    {formatCurrency(Number(item.Amount) || 0)}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 px-4">
+                                                            {isValidating ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Loader2 className="w-3 h-3 text-[#13B5EA] animate-spin" />
+                                                                    <span className="text-[10px] text-[#555555]">Checking...</span>
+                                                                </div>
+                                                            ) : report?.status === 'VALID' ? (
+                                                                <div className="flex items-center gap-1.5 text-[#3BB54A] font-medium text-[10px]">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                    Verified
+                                                                </div>
+                                                            ) : report?.status === 'WARNING' ? (
+                                                                <div className="flex items-center gap-1.5 text-[#FFA726] font-medium text-[10px]">
+                                                                    <AlertCircle className="w-3.5 h-3.5" />
+                                                                    Warning
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-1.5 text-[#E53935] font-medium text-[10px]">
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    Invalid
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 px-4 max-w-[200px]">
+                                                            {report?.errors.map((err: string, idx: number) => (
+                                                                <p key={idx} className="text-[9px] text-[#E53935] font-bold leading-tight mb-0.5">• {err}</p>
+                                                            ))}
+                                                            {report?.warnings.map((warn: string, idx: number) => (
+                                                                <p key={idx} className="text-[9px] text-[#FFA726] font-bold leading-tight mb-0.5">• {warn}</p>
+                                                            ))}
+                                                            {report?.status === 'VALID' && <span className="text-[9px] text-[#8A8A8A] italic">No issues detected</span>}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
