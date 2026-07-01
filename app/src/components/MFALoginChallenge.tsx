@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Loader2, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 interface MFALoginChallengeProps {
-  userId: string;
   onVerify: (token: string) => Promise<boolean>;
   onCancel: () => void;
   error?: string | null;
