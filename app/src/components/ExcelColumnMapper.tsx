@@ -49,10 +49,6 @@ export function ExcelColumnMapper({
     const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
     const [newTemplateName, setNewTemplateName] = useState('');
 
-    useEffect(() => {
-        fetchTemplates();
-    }, [jobType]);
-
     const fetchTemplates = async () => {
         try {
             const res: any = await api.get(`/excel/mapping?jobType=${jobType}`);
@@ -61,6 +57,10 @@ export function ExcelColumnMapper({
             console.error('Failed to fetch templates');
         }
     };
+
+    useEffect(() => {
+        fetchTemplates();
+    }, [jobType]);
 
     const saveTemplate = async () => {
         if (!newTemplateName.trim()) {

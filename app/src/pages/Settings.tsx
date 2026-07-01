@@ -15,7 +15,8 @@ import {
   MoreVertical,
   Mail,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Calculator
 } from 'lucide-react';
 import type { User } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,7 +24,7 @@ import { timezones, bankAccounts } from '@/constants/options';
 import { api, ApiClientError } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 
-type SettingsTab = 'profile' | 'security' | 'notifications' | 'company' | 'users' | 'batch';
+type SettingsTab = 'profile' | 'security' | 'notifications' | 'company' | 'accounting' | 'users' | 'batch';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
@@ -87,8 +88,10 @@ export function Settings() {
     defaultBankAccountId: '',
     defaultCnNumberFormat: 'CN-{ref}',
     defaultLineAmountType: 'exclusive',
+    partialReversalAmountMode: 'TAX_EXCLUSIVE' as 'TAX_EXCLUSIVE' | 'BILL_TOTAL',
   });
   const [companySettingsLoading, setCompanySettingsLoading] = useState(false);
+  const [accountingSaving, setAccountingSaving] = useState(false);
 
   useEffect(() => {
     if (!authUser?.id) return;
@@ -105,6 +108,21 @@ export function Settings() {
       })
       .catch(() => {});
   }, [authUser?.id]);
+
+  // Fetch company-level settings (including partialReversalAmountMode)
+  useEffect(() => {
+    if (!authCompanyId) return;
+    api.get<any>(`companies/${authCompanyId}`)
+      .then((data) => {
+        if (data?.partialReversalAmountMode) {
+          setCompanySettings(prev => ({
+            ...prev,
+            partialReversalAmountMode: data.partialReversalAmountMode,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [authCompanyId]);
 
   const showSaveSuccess = () => {
     setSaveSuccess(true);
@@ -214,6 +232,7 @@ export function Settings() {
     { id: 'security' as SettingsTab, label: 'Security', icon: ShieldCheck },
     { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
     { id: 'company' as SettingsTab, label: 'Company', icon: Building2 },
+    { id: 'accounting' as SettingsTab, label: 'Accounting', icon: Calculator },
     { id: 'users' as SettingsTab, label: 'User Management', icon: Users },
     { id: 'batch' as SettingsTab, label: 'Batch Configs', icon: Globe },
   ];
@@ -275,6 +294,98 @@ export function Settings() {
                 >
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'accounting' && (
+            <div className="bg-white border border-[#E0E0E0] rounded-xl p-8 shadow-sm">
+              <h2 className="text-lg font-semibold text-[#1A1A1A] mb-2 flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-[#13B5EA]" />
+                Reversal Settings
+              </h2>
+              <p className="text-sm text-[#555555] mb-8">Control how partial reversal amounts are interpreted when creating Xero Credit Notes.</p>
+
+              <div className="max-w-lg space-y-4">
+                <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">Partial Reversal Amount Mode</label>
+
+                <label
+                  className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
+                    companySettings.partialReversalAmountMode === 'TAX_EXCLUSIVE'
+                      ? 'border-[#13B5EA] bg-[#E5F6FC] ring-2 ring-[#13B5EA]/20'
+                      : 'border-[#E0E0E0] hover:border-[#BDBDBD]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="reversalMode"
+                    value="TAX_EXCLUSIVE"
+                    checked={companySettings.partialReversalAmountMode === 'TAX_EXCLUSIVE'}
+                    onChange={() => setCompanySettings(s => ({ ...s, partialReversalAmountMode: 'TAX_EXCLUSIVE' }))}
+                    className="mt-0.5 w-4 h-4 text-[#13B5EA] focus:ring-[#13B5EA]"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#1A1A1A] text-sm">Tax Exclusive</span>
+                    <span className="ml-2 px-1.5 py-0.5 bg-[#E8F5E9] text-[#3BB54A] text-[9px] font-bold rounded">DEFAULT</span>
+                    <p className="text-xs text-[#555555] mt-1">Reversal amount = tax-exclusive line amount. Taxes are added on top by Xero.</p>
+                    <p className="text-[10px] text-[#8A8A8A] mt-1 font-mono">e.g. Enter $1,500 → CN Total = $1,500 + taxes</p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
+                    companySettings.partialReversalAmountMode === 'BILL_TOTAL'
+                      ? 'border-[#13B5EA] bg-[#E5F6FC] ring-2 ring-[#13B5EA]/20'
+                      : 'border-[#E0E0E0] hover:border-[#BDBDBD]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="reversalMode"
+                    value="BILL_TOTAL"
+                    checked={companySettings.partialReversalAmountMode === 'BILL_TOTAL'}
+                    onChange={() => setCompanySettings(s => ({ ...s, partialReversalAmountMode: 'BILL_TOTAL' }))}
+                    className="mt-0.5 w-4 h-4 text-[#13B5EA] focus:ring-[#13B5EA]"
+                  />
+                  <div>
+                    <span className="font-semibold text-[#1A1A1A] text-sm">Bill Total (Including Tax)</span>
+                    <p className="text-xs text-[#555555] mt-1">Reversal amount = final amount removed from bill including taxes. System back-calculates the tax-exclusive portion.</p>
+                    <p className="text-[10px] text-[#8A8A8A] mt-1 font-mono">e.g. Enter $1,500 → CN Total = exactly $1,500</p>
+                  </div>
+                </label>
+
+                <div className="bg-[#FFF4E5] border border-[#FFE0B2] rounded-lg p-3 mt-4">
+                  <p className="text-[11px] text-[#795548] flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#FFA726]" />
+                    Changing this setting only affects <strong>newly created</strong> reversals. Existing schedules and credit notes are not modified.
+                  </p>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!authCompanyId) return;
+                    setAccountingSaving(true);
+                    try {
+                      // Find the actual company DB id
+                      const companies = await api.get<any[]>('companies');
+                      const company = companies.find((c: any) => c.companyId === authCompanyId);
+                      if (!company) throw new Error('Company not found');
+                      await api.patch(`companies/${company.companyId}`, {
+                        partialReversalAmountMode: companySettings.partialReversalAmountMode,
+                      });
+                      toastSuccess('Saved', 'Reversal amount mode updated');
+                    } catch (err: any) {
+                      toastError('Error', err.message || 'Failed to save setting');
+                    } finally {
+                      setAccountingSaving(false);
+                    }
+                  }}
+                  disabled={accountingSaving}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#13B5EA] text-white rounded-lg font-medium hover:bg-[#0E92BC] transition-all disabled:opacity-50"
+                >
+                  {accountingSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Accounting Settings
                 </button>
               </div>
             </div>

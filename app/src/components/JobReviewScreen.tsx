@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { jobService } from '@/services/jobService';
 import { validationService, type ValidationReportItem } from '@/services/validationService';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 
 export function JobReviewScreen({
     jobType,
@@ -25,7 +26,7 @@ export function JobReviewScreen({
     onBack: () => void;
 }) {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, companyId: authCompanyId } = useAuth();
     const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +36,20 @@ export function JobReviewScreen({
     const [reversalDate, setReversalDate] = useState(new Date().toISOString().split('T')[0]);
     const [jobName, setJobName] = useState('');
     const [itemConfigs, setItemConfigs] = useState<Record<number, { type: 'FULL' | 'PARTIAL', amount: number }>>({});
+    const [hasValidationError, setHasValidationError] = useState(false);
+    const [amountMode, setAmountMode] = useState<'TAX_EXCLUSIVE' | 'BILL_TOTAL'>('TAX_EXCLUSIVE');
+
+    // Fetch company reversal amount mode setting
+    useEffect(() => {
+        if (!authCompanyId) return;
+        api.get<any>(`companies/${authCompanyId}`)
+            .then((company) => {
+                if (company?.partialReversalAmountMode === 'BILL_TOTAL') {
+                    setAmountMode('BILL_TOTAL');
+                }
+            })
+            .catch(() => { /* Fallback to default TAX_EXCLUSIVE */ });
+    }, [authCompanyId]);
 
     // Initialize configs
     useEffect(() => {
@@ -47,48 +62,56 @@ export function JobReviewScreen({
 
     const totalAmount = Object.values(itemConfigs).reduce((sum, cfg) => sum + cfg.amount, 0);
 
+    const runValidation = async () => {
+        if (jobData.length === 0) {
+            setIsValidating(false);
+            return;
+        }
+        setIsValidating(true);
+        setHasValidationError(false);
+        try {
+            const itemsToValidate = jobData.map((row, i) => ({
+                id: `item-${i}`,
+                itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE_REVERSAL' : 'OVERPAYMENT_ALLOCATION',
+                invoiceNumber: row['Invoice Number'],
+                xeroInvoiceId: row.xeroInvoiceId,
+                expectedAmount: Number(row.Amount),
+                contactName: row.xeroInvoiceId ? undefined : row['Vendor Name'],
+            }));
+
+            const response = await validationService.runValidation({ items: itemsToValidate });
+            const reportMap: Record<string, ValidationReportItem> = {};
+            response.report.forEach(r => {
+                reportMap[r.id] = r;
+            });
+            setValidationReports(reportMap);
+        } catch (error) {
+            console.error('Validation failed:', error);
+            toast.error('Live Xero validation failed. Check your connection or active organization.');
+            setHasValidationError(true);
+        } finally {
+            setIsValidating(false);
+        }
+    };
+
     // Run live validation on load
     useEffect(() => {
-        const runValidation = async () => {
-            setIsValidating(true);
-            try {
-                const itemsToValidate = jobData.map((row, i) => ({
-                    id: `item-${i}`,
-                    itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE_REVERSAL' : 'OVERPAYMENT_ALLOCATION',
-                    invoiceNumber: row['Invoice Number'],
-                    xeroInvoiceId: row.xeroInvoiceId,
-                    expectedAmount: Number(row.Amount),
-                    // Only pass contactName when there's no xeroInvoiceId (e.g., Excel upload)
-                    // If we have the exact Xero ID, the name check is redundant and noisy
-                    contactName: row.xeroInvoiceId ? undefined : row['Vendor Name'],
-                }));
-
-                const response = await validationService.runValidation({ items: itemsToValidate });
-                const reportMap: Record<string, ValidationReportItem> = {};
-                response.report.forEach(r => {
-                    reportMap[r.id] = r;
-                });
-                setValidationReports(reportMap);
-            } catch (error) {
-                console.error('Validation failed:', error);
-                toast.error('Live Xero validation failed. Check your connection.');
-            } finally {
-                setIsValidating(false);
-            }
-        };
-
         runValidation();
     }, [jobData, jobType]);
 
-    const globalStatus = Object.values(validationReports).reduce((status, r) => {
-        if (r.status === 'ERROR' || r.status === 'INVALID') return 'INVALID';
-        if (r.status === 'WARNING' && status !== 'INVALID') return 'WARNING';
-        return status;
-    }, 'VALID' as 'VALID' | 'WARNING' | 'INVALID');
+    const globalStatus = (() => {
+        if (hasValidationError) return 'ERROR';
+        if (Object.keys(validationReports).length === 0) return 'PENDING';
+        return Object.values(validationReports).reduce((status, r) => {
+            if (r.status === 'ERROR' || r.status === 'INVALID') return 'INVALID';
+            if (r.status === 'WARNING' && status !== 'INVALID') return 'WARNING';
+            return status;
+        }, 'VALID' as 'VALID' | 'WARNING' | 'INVALID' | 'ERROR' | 'PENDING');
+    })();
 
     const handleSubmit = async () => {
-        if (globalStatus === 'INVALID') {
-            toast.error('Cannot submit job with validation errors');
+        if (globalStatus === 'INVALID' || globalStatus === 'ERROR' || globalStatus === 'PENDING') {
+            toast.error('Cannot submit job without a successful validation check');
             return;
         }
         if (globalStatus === 'WARNING' && !acknowledged) {
@@ -114,7 +137,8 @@ export function JobReviewScreen({
                     expectedAmount: Number(row.Amount),
                     reversalConfig: jobType === 'INVOICE_REVERSAL' ? {
                         reversalType: config.type,
-                        partialAmount: config.type === 'PARTIAL' ? config.amount : undefined
+                        partialAmount: config.type === 'PARTIAL' ? config.amount : undefined,
+                        amountMode: config.type === 'PARTIAL' ? amountMode : undefined
                     } : undefined
                 };
             });
@@ -161,13 +185,27 @@ export function JobReviewScreen({
                        Running Live Validation...
                    </div>
                 ) : (
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ring-1 ring-inset ${
-                        globalStatus === 'VALID' ? 'bg-[#E8F5E9] text-[#3BB54A] ring-[#3BB54A]/30' :
-                        globalStatus === 'WARNING' ? 'bg-[#FFF4E5] text-[#FFA726] ring-[#FFA726]/30' :
-                        'bg-[#FFEBEE] text-[#E53935] ring-[#E53935]/30'
-                    }`}>
-                        {globalStatus === 'VALID' ? <ShieldCheck className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                        {globalStatus === 'VALID' ? 'Validation Passed' : globalStatus === 'WARNING' ? 'Warnings Detected' : 'Validation Failed'}
+                    <div className="flex items-center gap-3">
+                        {globalStatus === 'ERROR' && (
+                            <button
+                                onClick={runValidation}
+                                className="px-3 py-1 bg-[#FFEBEE] hover:bg-[#FFCDD2] text-[#D32F2F] text-xs font-bold rounded border border-[#E53935] transition-colors animate-pulse"
+                            >
+                                Retry Validation
+                            </button>
+                        )}
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ring-1 ring-inset ${
+                            globalStatus === 'VALID' ? 'bg-[#E8F5E9] text-[#3BB54A] ring-[#3BB54A]/30' :
+                            globalStatus === 'WARNING' ? 'bg-[#FFF4E5] text-[#FFA726] ring-[#FFA726]/30' :
+                            globalStatus === 'ERROR' ? 'bg-[#FFEBEE] text-[#E53935] ring-[#E53935]/30' :
+                            'bg-[#ECEFF1] text-[#546E7A] ring-[#546E7A]/30'
+                        }`}>
+                            {globalStatus === 'VALID' ? <ShieldCheck className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                            {globalStatus === 'VALID' ? 'Validation Passed' : 
+                             globalStatus === 'WARNING' ? 'Warnings Detected' : 
+                             globalStatus === 'ERROR' ? 'Validation Failed to Run' : 
+                             'Validation Pending'}
+                        </div>
                     </div>
                 )}
             </div>
@@ -209,9 +247,19 @@ export function JobReviewScreen({
                             <span className="text-[#555555]">Total Items</span>
                             <span className="font-bold text-[#1A1A1A] text-lg">{jobData.length}</span>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-2">
                             <span className="text-[#555555]">Total Value</span>
                             <span className="font-bold text-[#13B5EA] text-lg">{formatCurrency(totalAmount)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[#555555]">Amount Mode</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                amountMode === 'BILL_TOTAL'
+                                    ? 'bg-[#FFF4E5] text-[#FFA726]'
+                                    : 'bg-[#E8F5E9] text-[#3BB54A]'
+                            }`}>
+                                {amountMode === 'BILL_TOTAL' ? 'Including Tax' : 'Tax Exclusive'}
+                            </span>
                         </div>
                     </div>
 
@@ -245,7 +293,9 @@ export function JobReviewScreen({
                                         <th className="py-3 px-4 text-left font-semibold text-[#555555] w-12">#</th>
                                         <th className="py-3 px-4 text-left font-semibold text-[#555555]">Reference</th>
                                         <th className="py-3 px-4 text-left font-semibold text-[#555555]">Mode</th>
-                                        <th className="py-3 px-4 text-right font-semibold text-[#555555]">Reversal Amount</th>
+                                        <th className="py-3 px-4 text-right font-semibold text-[#555555]">
+                                            {amountMode === 'BILL_TOTAL' ? 'Amount to Reverse (Incl. Tax)' : 'Reversal Amount (Excl. Tax)'}
+                                        </th>
                                         <th className="py-3 px-4 text-left font-semibold text-[#555555]">Validation Status</th>
                                         <th className="py-3 px-4 text-left font-semibold text-[#555555]">Issues/Notes</th>
                                     </tr>
@@ -301,7 +351,7 @@ export function JobReviewScreen({
                                                         <td className="py-3 px-4 text-right">
                                                             {itemConfigs[item.originalIndex]?.type === 'PARTIAL' ? (
                                                                 <div className="flex items-center justify-end gap-1">
-                                                                    <span className="text-[10px] text-[#555555]">$</span>
+                                                                    <span className="text-[10px] text-[#555555]" title={amountMode === 'BILL_TOTAL' ? 'Total including tax' : 'Tax exclusive'}>$</span>
                                                                     <input
                                                                         type="number"
                                                                         step="0.01"
@@ -325,12 +375,17 @@ export function JobReviewScreen({
                                                                     <Loader2 className="w-3 h-3 text-[#13B5EA] animate-spin" />
                                                                     <span className="text-[10px] text-[#555555]">Checking...</span>
                                                                 </div>
-                                                            ) : report?.status === 'VALID' ? (
+                                                            ) : !report ? (
+                                                                <div className="flex items-center gap-1.5 text-[#546E7A] font-medium text-[10px]">
+                                                                    <AlertCircle className="w-3.5 h-3.5" />
+                                                                    Not checked
+                                                                </div>
+                                                            ) : report.status === 'VALID' ? (
                                                                 <div className="flex items-center gap-1.5 text-[#3BB54A] font-medium text-[10px]">
                                                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                                                     Verified
                                                                 </div>
-                                                            ) : report?.status === 'WARNING' ? (
+                                                            ) : report.status === 'WARNING' ? (
                                                                 <div className="flex items-center gap-1.5 text-[#FFA726] font-medium text-[10px]">
                                                                     <AlertCircle className="w-3.5 h-3.5" />
                                                                     Warning
@@ -343,6 +398,9 @@ export function JobReviewScreen({
                                                             )}
                                                         </td>
                                                         <td className="py-3 px-4 max-w-[200px]">
+                                                            {!report && (
+                                                                <span className="text-[9px] text-[#546E7A] italic">Validation did not run</span>
+                                                            )}
                                                             {report?.errors.map((err: string, idx: number) => (
                                                                 <p key={idx} className="text-[9px] text-[#E53935] font-bold leading-tight mb-0.5">• {err}</p>
                                                             ))}
@@ -373,7 +431,7 @@ export function JobReviewScreen({
                 </button>
                 <button
                     onClick={handleSubmit}
-                    disabled={isSubmitting || isValidating || globalStatus === 'INVALID' || (globalStatus === 'WARNING' && !acknowledged)}
+                    disabled={isSubmitting || isValidating || globalStatus === 'INVALID' || globalStatus === 'ERROR' || globalStatus === 'PENDING' || (globalStatus === 'WARNING' && !acknowledged)}
                     className="flex items-center gap-2 px-8 py-2.5 bg-[#13B5EA] text-white rounded-md font-bold hover:bg-[#0E92BC] disabled:opacity-50 transition-all shadow-md"
                 >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}

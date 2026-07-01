@@ -120,7 +120,7 @@ export function JobManualBuilder() {
             delete newState[contactId];
             return newState;
         });
-        if (activeSupplier?.ContactID === contactId) {
+        if (activeSupplier?.xeroContactId === contactId) {
             setActiveSupplier(null);
             setActiveBills([]);
         }
@@ -244,7 +244,7 @@ export function JobManualBuilder() {
                                             <p className="text-xs text-[#13B5EA] font-bold">{item.selectedBillIds.size} invoices selected</p>
                                         </div>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); removeFromBasket(item.supplier.ContactID); }}
+                                            onClick={(e) => { e.stopPropagation(); removeFromBasket(item.supplier.xeroContactId); }}
                                             className="p-2 text-[#8A8A8A] hover:text-[#E53935] hover:bg-[#FFEBEE] rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                         >
                                             <Trash2 className="w-4 h-4" />

@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
+import { AlertModal } from '@/components/ui/alert-modal';
+
 
 type CompanyItem = {
   companyId: string;
@@ -56,6 +58,9 @@ export function ConnectedCompanies() {
   const activeTenantId = useSelector((state: RootState) => state.auth.activeTenantId);
   const { switchCompany, companyId: activeCompanyId } = useAuth();
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [disconnectTenantId, setDisconnectTenantId] = useState<string | null>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
 
   useEffect(() => {
     // 1. Fetch connections
@@ -87,23 +92,29 @@ export function ConnectedCompanies() {
     }
   };
 
-  const handleDisconnect = async (tenantId: string) => {
-    if (!window.confirm('Are you sure you want to disconnect this organization? This will stop all synchronization.')) {
-      return;
-    }
+  const handleDisconnect = (tenantId: string) => {
+    setDisconnectTenantId(tenantId);
+  };
 
+  const confirmDisconnect = async () => {
+    if (!disconnectTenantId) return;
+    setIsDisconnecting(true);
     try {
-      await api.delete(`xero/connections/${tenantId}`);
-      setCompanies(prev => prev.filter(c => c.tenantId !== tenantId));
-      if (activeTenantId === tenantId) {
+      await api.delete(`xero/connections/${disconnectTenantId}`);
+      setCompanies(prev => prev.filter(c => c.tenantId !== disconnectTenantId));
+      if (activeTenantId === disconnectTenantId) {
         dispatch(setActiveTenantAction(null));
         setActiveTenantApi(null);
       }
       toast.success('Organization disconnected');
+      setDisconnectTenantId(null);
     } catch (err) {
       toast.error('Failed to disconnect');
+    } finally {
+      setIsDisconnecting(false);
     }
   };
+
 
   const selectActiveTenant = async (companyId: string) => {
     if (!companyId) return;
@@ -439,6 +450,19 @@ export function ConnectedCompanies() {
           </div>
         </div>
       )}
+
+      {/* Disconnect Confirmation Modal */}
+      <AlertModal
+        isOpen={disconnectTenantId !== null}
+        onClose={() => setDisconnectTenantId(null)}
+        onConfirm={confirmDisconnect}
+        title="Disconnect Organization"
+        description="Are you sure you want to disconnect this organization? This will stop all synchronization."
+        confirmText="Disconnect"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={isDisconnecting}
+      />
     </div>
   );
 }
