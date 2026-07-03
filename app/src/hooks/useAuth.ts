@@ -18,10 +18,10 @@ export function useAuth() {
   const auth = useAppSelector((state) => state.auth);
 
   const login = useCallback(
-    async (credentials: LoginCredentials): Promise<{ success: boolean; mfaRequired?: boolean; userId?: string }> => {
+    async (credentials: LoginCredentials): Promise<{ success: boolean; mfaRequired?: boolean; mfaToken?: string }> => {
       dispatch(setAuthLoading());
       try {
-        const data = await api.post<AuthResponseData & { mfaRequired?: boolean; user: { id: string } }>(
+        const data = await api.post<AuthResponseData & { mfaRequired?: boolean; mfaToken?: string; user: { id: string } }>(
           "auth/login",
           {
             email: credentials.email,
@@ -32,7 +32,7 @@ export function useAuth() {
 
         if (data.mfaRequired) {
           dispatch(setAuthError("")); // Clear loading, no error yet
-          return { success: false, mfaRequired: true, userId: data.user.id };
+          return { success: false, mfaRequired: true, mfaToken: data.mfaToken };
         }
 
         if (!data.token) {
@@ -54,11 +54,11 @@ export function useAuth() {
   );
 
   const verifyMFALogin = useCallback(
-    async (userId: string, token: string): Promise<boolean> => {
+    async (mfaToken: string, token: string): Promise<boolean> => {
       dispatch(setAuthLoading());
       try {
         const data = await api.post<AuthResponseData>("auth/mfa/login-verify", {
-          userId,
+          mfaToken,
           token,
         }, false);
         

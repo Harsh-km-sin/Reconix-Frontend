@@ -20,7 +20,7 @@ import { MFALoginChallenge } from '@/components/MFALoginChallenge';
 
 function App() {
   const [authView, setAuthView] = useState<'login' | 'register' | 'mfa'>('login');
-  const [mfaUserId, setMfaUserId] = useState<string | null>(null);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
   const { user, isAuthenticated, isLoading, login, logout, lastAuthError, permissions, companies, companyId, verifyMFALogin, switchCompany } = useAuth();
   const { toasts, removeToast, success, error } = useToast();
 
@@ -28,8 +28,8 @@ function App() {
     const result = await login(credentials);
     if (result.success) {
       success('Welcome back!', 'You have successfully signed in.');
-    } else if (result.mfaRequired && result.userId) {
-      setMfaUserId(result.userId);
+    } else if (result.mfaRequired && result.mfaToken) {
+      setMfaToken(result.mfaToken);
       setAuthView('mfa');
     } else {
       error('Sign in failed', lastAuthError ?? 'Please check your credentials and try again.');
@@ -38,8 +38,8 @@ function App() {
   };
 
   const handleMFAVerify = async (token: string) => {
-    if (!mfaUserId) return false;
-    const successResult = await verifyMFALogin(mfaUserId, token);
+    if (!mfaToken) return false;
+    const successResult = await verifyMFALogin(mfaToken, token);
     if (successResult) {
       success('Welcome back!', 'MFA verification successful.');
     }
@@ -65,15 +65,14 @@ function App() {
 
   // Show auth screens if not authenticated
   if (!isAuthenticated) {
-    if (authView === 'mfa' && mfaUserId) {
+    if (authView === 'mfa' && mfaToken) {
       return (
         <>
           <MFALoginChallenge
-            userId={mfaUserId}
             onVerify={handleMFAVerify}
             onCancel={() => {
               setAuthView('login');
-              setMfaUserId(null);
+              setMfaToken(null);
             }}
             error={lastAuthError}
           />
