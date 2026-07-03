@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Check, MapPin, Save, List } from 'lucide-react';
 import { api } from '@/lib/api';
+import { JOB_TYPE } from '@/types';
 import toast from 'react-hot-toast';
 
 interface ColumnMapping {
@@ -28,12 +29,12 @@ export function ExcelColumnMapper({
 }) {
     const getRequiredFields = (): ColumnMapping => {
         switch (jobType) {
-            case 'INVOICE_REVERSAL':
+            case JOB_TYPE.INVOICE_REVERSAL:
                 return {
                     required: ['Invoice Number', 'Amount'],
                     optional: ['Vendor Name', 'Date']
                 };
-            case 'OVERPAYMENT_ALLOCATION':
+            case JOB_TYPE.OVERPAYMENT_ALLOCATION:
                 return {
                     required: ['Vendor Name', 'Amount'],
                     optional: ['Invoice Number', 'Overpayment Ref']

@@ -15,6 +15,8 @@ import { jobService } from '@/services/jobService';
 import { validationService, type ValidationReportItem } from '@/services/validationService';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
+import { JOB_TYPE } from '@/types';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 export function JobReviewScreen({
     jobType,
@@ -26,8 +28,8 @@ export function JobReviewScreen({
     onBack: () => void;
 }) {
     const navigate = useNavigate();
-    const { user, companyId: authCompanyId } = useAuth();
-    const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
+    const { companyId: authCompanyId, permissions } = useAuth();
+    const canSelfApprove = hasPermission(permissions, PERMISSIONS.SELF_APPROVE_JOBS);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isValidating, setIsValidating] = useState(true);
@@ -72,7 +74,7 @@ export function JobReviewScreen({
         try {
             const itemsToValidate = jobData.map((row, i) => ({
                 id: `item-${i}`,
-                itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE_REVERSAL' : 'OVERPAYMENT_ALLOCATION',
+                itemType: jobType === JOB_TYPE.INVOICE_REVERSAL ? JOB_TYPE.INVOICE_REVERSAL : JOB_TYPE.OVERPAYMENT_ALLOCATION,
                 invoiceNumber: row['Invoice Number'],
                 xeroInvoiceId: row.xeroInvoiceId,
                 expectedAmount: Number(row.Amount),
@@ -123,19 +125,19 @@ export function JobReviewScreen({
         try {
             const job = await jobService.createJob({
                 jobType: jobType as any,
-                reversalDate: jobType === 'INVOICE_REVERSAL' ? reversalDate : undefined,
+                reversalDate: jobType === JOB_TYPE.INVOICE_REVERSAL ? reversalDate : undefined,
                 notes: jobName || `${jobType.replace('_', ' ')} manual build`
             });
 
             const items = jobData.map((row, i) => {
                 const config = itemConfigs[i];
                 return {
-                    itemType: jobType === 'INVOICE_REVERSAL' ? 'INVOICE' : 'OVERPAYMENT',
+                    itemType: jobType === JOB_TYPE.INVOICE_REVERSAL ? 'INVOICE' : 'OVERPAYMENT',
                     invoiceNumber: row['Invoice Number'],
                     xeroInvoiceId: row.dbInvoiceId,
                     contactName: row['Vendor Name'],
                     expectedAmount: Number(row.Amount),
-                    reversalConfig: jobType === 'INVOICE_REVERSAL' ? {
+                    reversalConfig: jobType === JOB_TYPE.INVOICE_REVERSAL ? {
                         reversalType: config.type,
                         partialAmount: config.type === 'PARTIAL' ? config.amount : undefined,
                         amountMode: config.type === 'PARTIAL' ? amountMode : undefined
@@ -145,7 +147,10 @@ export function JobReviewScreen({
 
             await jobService.addItems(job.id, items);
 
-            if (isApprover) {
+            // Users with the self-approve capability (e.g. ADMIN) approve and run
+            // their own job in one step; everyone else saves it as PENDING for a
+            // separate approver (four-eyes).
+            if (canSelfApprove) {
                 await jobService.approveJob(job.id);
                 toast.success('Job created and scheduled for execution!');
             } else {
@@ -227,7 +232,7 @@ export function JobReviewScreen({
                                 />
                             </div>
 
-                            {jobType === 'INVOICE_REVERSAL' && (
+                            {jobType === JOB_TYPE.INVOICE_REVERSAL && (
                                 <div>
                                     <label className="block text-sm font-medium text-[#555555] mb-1.5">Reversal Date</label>
                                     <input
@@ -328,7 +333,7 @@ export function JobReviewScreen({
                                                             {item['Invoice Number'] || item['Reference'] || '—'}
                                                         </td>
                                                         <td className="py-3 px-4">
-                                                            {jobType === 'INVOICE_REVERSAL' ? (
+                                                            {jobType === JOB_TYPE.INVOICE_REVERSAL ? (
                                                                 <select
                                                                     value={itemConfigs[item.originalIndex]?.type || 'FULL'}
                                                                     onChange={(e) => setItemConfigs(prev => ({
@@ -435,7 +440,7 @@ export function JobReviewScreen({
                     className="flex items-center gap-2 px-8 py-2.5 bg-[#13B5EA] text-white rounded-md font-bold hover:bg-[#0E92BC] disabled:opacity-50 transition-all shadow-md"
                 >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    {isApprover ? 'Submit & Execute Schedule' : 'Submit for Approval'}
+                    {canSelfApprove ? 'Submit & Execute' : 'Submit for Approval'}
                 </button>
             </div>
         </div>

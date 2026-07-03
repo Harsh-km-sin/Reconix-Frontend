@@ -6,10 +6,12 @@ import { FileUp, FileSpreadsheet, AlertCircle, Loader2, ArrowRight } from 'lucid
 import toast from 'react-hot-toast';
 import { ExcelColumnMapper } from '@/components/ExcelColumnMapper';
 import { JobReviewScreen } from '@/components/JobReviewScreen';
+import { JOB_TYPE_LABELS, type JobType } from '@/types';
+import { JOB_TYPE_PARAM } from '@/lib/nav';
 
 export function JobUploadBuilder() {
     const [searchParams] = useSearchParams();
-    const type = searchParams.get('type') || 'Unknown';
+    const type = searchParams.get(JOB_TYPE_PARAM) || 'Unknown';
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [showReview, setShowReview] = useState(false);
@@ -23,13 +25,7 @@ export function JobUploadBuilder() {
         workbook: XLSX.WorkBook | null;
     } | null>(null);
 
-    const getJobTitle = () => {
-        switch (type) {
-            case 'INVOICE_REVERSAL': return 'Invoice Reversal';
-            case 'OVERPAYMENT_ALLOCATION': return 'Overpayment Allocation';
-            default: return 'Custom Job';
-        }
-    };
+    const getJobTitle = () => JOB_TYPE_LABELS[type as JobType] ?? 'Custom Job';
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0];

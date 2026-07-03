@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FileUp, Pencil, ArrowRight, FileSpreadsheet } from 'lucide-react';
-
-type JobType = 'INVOICE_REVERSAL' | 'OVERPAYMENT_ALLOCATION' | null;
+import { JOB_TYPE, type JobType } from '@/types';
+import { JOB_TYPE_PARAM, parseJobType } from '@/lib/nav';
 
 export function JobBuilderSelection() {
     const navigate = useNavigate();
-    const [selectedType, setSelectedType] = useState<JobType>(null);
+    const [searchParams] = useSearchParams();
+    // Pre-select when the Dashboard (or a bookmark) passes ?type=...
+    const [selectedType, setSelectedType] = useState<JobType | null>(parseJobType(searchParams.get(JOB_TYPE_PARAM)));
 
     return (
         <div className="max-w-[1000px] mx-auto animate-fade-in p-8">
@@ -17,33 +19,33 @@ export function JobBuilderSelection() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 relative">
                 <button
-                    onClick={() => setSelectedType('INVOICE_REVERSAL')}
-                    className={`text-left p-8 rounded-xl border-2 transition-all duration-200 ${selectedType === 'INVOICE_REVERSAL'
+                    onClick={() => setSelectedType(JOB_TYPE.INVOICE_REVERSAL)}
+                    className={`text-left p-8 rounded-xl border-2 transition-all duration-200 ${selectedType === JOB_TYPE.INVOICE_REVERSAL
                             ? 'border-[#13B5EA] bg-[#E5F6FC] shadow-[0_8px_24px_rgba(19,181,234,0.15)]'
                             : 'border-[#E0E0E0] hover:border-[#CBD5E1] bg-white hover:shadow-lg'
                         }`}
                 >
                     <div className="w-14 h-14 bg-white rounded-lg shadow-sm flex items-center justify-center mb-6">
-                        <FileSpreadsheet className={`w-7 h-7 ${selectedType === 'INVOICE_REVERSAL' ? 'text-[#13B5EA]' : 'text-[#8A8A8A]'}`} />
+                        <FileSpreadsheet className={`w-7 h-7 ${selectedType === JOB_TYPE.INVOICE_REVERSAL ? 'text-[#13B5EA]' : 'text-[#8A8A8A]'}`} />
                     </div>
                     <h3 className="text-xl font-bold text-[#1A1A1A] mb-3">Invoice Reversal</h3>
                     <p className="text-[#555555] leading-relaxed">
                         Bulk-create credit notes against AP invoices with FX-neutral reversal.
                     </p>
-                    <div className={`mt-6 inline-flex items-center text-sm font-semibold ${selectedType === 'INVOICE_REVERSAL' ? 'text-[#13B5EA]' : 'text-transparent'}`}>
+                    <div className={`mt-6 inline-flex items-center text-sm font-semibold ${selectedType === JOB_TYPE.INVOICE_REVERSAL ? 'text-[#13B5EA]' : 'text-transparent'}`}>
                         SELECTED
                     </div>
                 </button>
 
                 <button
-                    onClick={() => setSelectedType('OVERPAYMENT_ALLOCATION')}
-                    className={`text-left p-8 rounded-xl border-2 transition-all duration-200 ${selectedType === 'OVERPAYMENT_ALLOCATION'
+                    onClick={() => setSelectedType(JOB_TYPE.OVERPAYMENT_ALLOCATION)}
+                    className={`text-left p-8 rounded-xl border-2 transition-all duration-200 ${selectedType === JOB_TYPE.OVERPAYMENT_ALLOCATION
                             ? 'border-[#13B5EA] bg-[#E5F6FC] shadow-[0_8px_24px_rgba(19,181,234,0.15)]'
                             : 'border-[#E0E0E0] hover:border-[#CBD5E1] bg-white hover:shadow-lg'
                         }`}
                 >
                     <div className="w-14 h-14 bg-white rounded-lg shadow-sm flex items-center justify-center mb-6">
-                        <svg className={`w-7 h-7 ${selectedType === 'OVERPAYMENT_ALLOCATION' ? 'text-[#13B5EA]' : 'text-[#8A8A8A]'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className={`w-7 h-7 ${selectedType === JOB_TYPE.OVERPAYMENT_ALLOCATION ? 'text-[#13B5EA]' : 'text-[#8A8A8A]'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="2" y="5" width="20" height="14" rx="2" />
                             <line x1="2" y1="10" x2="22" y2="10" />
                         </svg>
@@ -52,7 +54,7 @@ export function JobBuilderSelection() {
                     <p className="text-[#555555] leading-relaxed">
                         Allocate overpayments against outstanding bills with exact supplier matching.
                     </p>
-                    <div className={`mt-6 inline-flex items-center text-sm font-semibold ${selectedType === 'OVERPAYMENT_ALLOCATION' ? 'text-[#13B5EA]' : 'text-transparent'}`}>
+                    <div className={`mt-6 inline-flex items-center text-sm font-semibold ${selectedType === JOB_TYPE.OVERPAYMENT_ALLOCATION ? 'text-[#13B5EA]' : 'text-transparent'}`}>
                         SELECTED
                     </div>
                 </button>

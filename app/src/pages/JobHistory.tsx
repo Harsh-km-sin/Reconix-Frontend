@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Job, JobType, JobStatus } from '@/types';
+import { JOB_TYPE, JOB_TYPE_LABELS } from '@/types';
 import { jobService } from '@/services/jobService';
 import type { ListResponse } from '@/services/jobService';
 import {
@@ -19,10 +20,12 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 export function JobHistory() {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
+  const canSelfApprove = hasPermission(permissions, PERMISSIONS.SELF_APPROVE_JOBS);
   const [isApproving, setIsApproving] = useState(false);
   const [data, setData] = useState<ListResponse<Job> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -178,14 +181,7 @@ export function JobHistory() {
     return styles[status] || 'bg-[#F5F5F5] text-[#8A8A8A]';
   };
 
-  const getTypeLabel = (type: JobType) => {
-    const labels: Record<string, string> = {
-      INVOICE_REVERSAL: 'Invoice Reversal',
-      OVERPAYMENT_ALLOCATION: 'Overpayment Allocation',
-      OVERPAYMENT_CREATION: 'Overpayment Creation',
-    };
-    return labels[type] || type;
-  };
+  const getTypeLabel = (type: JobType) => JOB_TYPE_LABELS[type] ?? type;
 
   const formatDateTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('en-GB', {
@@ -267,9 +263,9 @@ export function JobHistory() {
             className="h-10 px-3 border border-[#E0E0E0] rounded-md text-sm focus:border-[#13B5EA] focus:outline-none"
           >
             <option value="ALL">All Types</option>
-            <option value="INVOICE_REVERSAL">Invoice Reversal</option>
-            <option value="OVERPAYMENT_ALLOCATION">Overpayment Allocation</option>
-            <option value="OVERPAYMENT_CREATION">Overpayment Creation</option>
+            <option value={JOB_TYPE.INVOICE_REVERSAL}>{JOB_TYPE_LABELS.INVOICE_REVERSAL}</option>
+            <option value={JOB_TYPE.OVERPAYMENT_ALLOCATION}>{JOB_TYPE_LABELS.OVERPAYMENT_ALLOCATION}</option>
+            <option value={JOB_TYPE.OVERPAYMENT_CREATION}>{JOB_TYPE_LABELS.OVERPAYMENT_CREATION}</option>
           </select>
 
           {/* Status */}
@@ -716,7 +712,7 @@ export function JobHistory() {
 
             {/* Footer */}
             <div className="p-6 border-t border-[#E0E0E0] flex justify-between items-center">
-              {selectedJob.status === 'PENDING' && isApprover ? (
+              {selectedJob.status === 'PENDING' && isApprover && (selectedJob.createdBy?.id !== user?.id || canSelfApprove) ? (
                 <button
                   onClick={handleApproveJob}
                   disabled={isApproving}

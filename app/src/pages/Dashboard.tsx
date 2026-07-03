@@ -5,6 +5,8 @@ import { RefreshCw, CreditCard, PlusCircle, ClipboardList, Building2, Settings, 
 import { jobService } from '@/services/jobService';
 import { xeroService } from '@/services/xeroService';
 import type { Job, JobStatus } from '@/types';
+import { JOB_TYPE } from '@/types';
+import { jobBuilderPath } from '@/lib/nav';
 
 interface ModuleCard {
   id: string;
@@ -113,7 +115,7 @@ export function Dashboard() {
       title: 'Invoice Reversal',
       description: 'Create credit notes and allocate against invoices',
       icon: RefreshCw,
-      path: '/reversal',
+      path: jobBuilderPath(JOB_TYPE.INVOICE_REVERSAL),
       color: '#13B5EA',
     },
     {
@@ -121,7 +123,7 @@ export function Dashboard() {
       title: 'Overpayment Allocation',
       description: 'Match overpayments to outstanding bills',
       icon: CreditCard,
-      path: '/allocation',
+      path: jobBuilderPath(JOB_TYPE.OVERPAYMENT_ALLOCATION),
       color: '#3BB54A',
     },
     {

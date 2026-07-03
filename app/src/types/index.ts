@@ -64,8 +64,22 @@ export interface Overpayment {
 // Bill Types (subset of Invoice)
 export interface Bill extends Invoice { }
 
-// Job Types
-export type JobType = 'INVOICE_REVERSAL' | 'OVERPAYMENT_ALLOCATION' | 'OVERPAYMENT_CREATION';
+// Job Types — single source of truth for the job-type values, the derived
+// union type, and their human-readable labels.
+export const JOB_TYPE = {
+  INVOICE_REVERSAL: 'INVOICE_REVERSAL',
+  OVERPAYMENT_ALLOCATION: 'OVERPAYMENT_ALLOCATION',
+  OVERPAYMENT_CREATION: 'OVERPAYMENT_CREATION',
+} as const;
+
+export type JobType = (typeof JOB_TYPE)[keyof typeof JOB_TYPE];
+
+export const JOB_TYPE_LABELS: Record<JobType, string> = {
+  [JOB_TYPE.INVOICE_REVERSAL]: 'Invoice Reversal',
+  [JOB_TYPE.OVERPAYMENT_ALLOCATION]: 'Overpayment Allocation',
+  [JOB_TYPE.OVERPAYMENT_CREATION]: 'Overpayment Creation',
+};
+
 export type JobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PARTIAL';
 
 export interface Job {
