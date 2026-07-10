@@ -4,7 +4,9 @@ export interface User {
   email: string;
   fullName: string | null;
   avatar?: string;
-  role: 'ADMIN' | 'APPROVER' | 'OPERATOR';
+  /** Role name (display only). Authorization is driven by permissions, not role. */
+  role: string;
+  roleId?: string;
   phoneNumber?: string | null;
   timezone?: string | null;
   dateFormat?: string | null;
@@ -129,6 +131,8 @@ export interface JobItem {
   contactName?: string | null;
   expectedAmount?: number | null;
   actualAmountDue?: number | null;
+  /** Amount Xero actually processed (credit note / allocation), set on execution. */
+  allocatedAmount?: number | null;
   amountMismatchAcknowledged: boolean;
   status: JobItemStatus;
   failureReason?: string | null;
@@ -220,9 +224,10 @@ export interface RegisterData {
 export interface AuthResponseData {
   token: string;
   user: { id: string; email: string; name: string | null };
-  role?: "ADMIN" | "APPROVER" | "OPERATOR";
+  role?: string;
+  roleId?: string;
   companyId?: string;
-  companies?: { companyId: string; companyName: string; role: "ADMIN" | "APPROVER" | "OPERATOR" }[];
+  companies?: { companyId: string; companyName: string; role: string }[];
 }
 
 /** Company option for switcher / dropdowns */
@@ -244,7 +249,7 @@ export interface CreateOverpaymentData {
 
 export interface InviteUserData {
   emails: string[];
-  role: 'admin' | 'approver' | 'operator';
+  roleId: string;
   companyIds: string[];
   message?: string;
 }

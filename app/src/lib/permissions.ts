@@ -4,10 +4,14 @@
  * access, and fine-grained capability strings (see PERMISSIONS).
  */
 
-/** Capability strings — must match the backend CAPABILITIES values. */
+/** Permission keys — must match the backend permission catalog. */
 export const PERMISSIONS = {
-  /** Approve/run a job you created yourself (authorised four-eyes exception). */
-  SELF_APPROVE_JOBS: 'jobs:self-approve',
+  /** Approve, retry, or cancel job execution. */
+  JOBS_APPROVE: 'jobs:approve',
+  /** Delete jobs. */
+  JOBS_DELETE: 'jobs:delete',
+  /** View and edit roles + their permissions. */
+  ROLES_MANAGE: 'roles:manage',
 } as const;
 
 export function hasModuleAccess(permissions: readonly string[], module: string): boolean {

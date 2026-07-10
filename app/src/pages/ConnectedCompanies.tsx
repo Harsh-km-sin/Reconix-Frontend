@@ -35,6 +35,14 @@ type CompanyItem = {
   invoiceCount: number;
   contactCount: number;
   overpaymentCount: number;
+  lastSync?: {
+    syncType: string;
+    status: string;
+    recordsFetched: number | null;
+    startedAt: string;
+    completedAt: string | null;
+    errorMessage: string | null;
+  } | null;
 };
 
 export function ConnectedCompanies() {
@@ -137,7 +145,11 @@ export function ConnectedCompanies() {
     setSyncComplete(false);
 
     try {
-      const response = await api.post<{ jobId: string }>(`xero/sync/${selectedCompany.tenantId}`, {});
+      // Default is incremental (only records changed since the last sync);
+      // "Full re-sync" ignores the watermark and pulls everything.
+      const response = await api.post<{ jobId: string }>(`xero/sync/${selectedCompany.tenantId}`, {
+        full: syncOptions.fullHistorical,
+      });
       const { jobId } = response;
 
       // Start polling
@@ -239,10 +251,27 @@ export function ConnectedCompanies() {
                 </div>
 
                 {/* Sync Info */}
-                <div className="flex items-center gap-2 text-sm text-[#555555] mb-4">
+                <div className="flex items-center gap-2 text-sm text-[#555555] mb-1">
                   <RefreshCw className="w-4 h-4" />
                   Last sync: {company.lastSyncedAt ? new Date(company.lastSyncedAt).toLocaleString() : 'Never'}
                 </div>
+                {company.lastSync && (
+                  <div className="flex items-center gap-1.5 text-xs mb-4 pl-6">
+                    <span className={
+                      company.lastSync.status === 'COMPLETED' ? 'text-[#3BB54A]'
+                        : company.lastSync.status === 'FAILED' ? 'text-[#E53935]'
+                        : 'text-[#FFA726]'
+                    }>
+                      {company.lastSync.status === 'COMPLETED' ? '✓' : company.lastSync.status === 'FAILED' ? '✕' : '⋯'}
+                    </span>
+                    <span className="text-[#8A8A8A]">
+                      {company.lastSync.syncType === 'FULL' ? 'Full' : 'Incremental'}
+                      {company.lastSync.status === 'COMPLETED' && ` · ${company.lastSync.recordsFetched ?? 0} record${company.lastSync.recordsFetched === 1 ? '' : 's'}`}
+                      {company.lastSync.status === 'FAILED' && ` · failed${company.lastSync.errorMessage ? `: ${company.lastSync.errorMessage}` : ''}`}
+                      {company.lastSync.status === 'RUNNING' && ' · running…'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Sync Counts */}
                 <div className="grid grid-cols-3 gap-3 mb-6">
@@ -383,8 +412,8 @@ export function ConnectedCompanies() {
                         className="w-4 h-4 border border-[#E0E0E0] rounded text-[#13B5EA] focus:ring-[#13B5EA]"
                       />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-[#1A1A1A]">Full Historical Sync</p>
-                        <p className="text-xs text-[#8A8A8A]">Include all data since inception (slow)</p>
+                        <p className="text-sm font-medium text-[#1A1A1A]">Full re-sync</p>
+                        <p className="text-xs text-[#8A8A8A]">Ignore the last-synced watermark and re-pull everything (slow). Leave off for a fast incremental sync of only what changed.</p>
                       </div>
                     </label>
                   </div>

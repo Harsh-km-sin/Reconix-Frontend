@@ -11,6 +11,7 @@ import { JobHistory } from '@/pages/JobHistory';
 import { ConnectedCompanies } from '@/pages/ConnectedCompanies';
 import { Settings } from '@/pages/Settings';
 import { AuditLogPage } from '@/pages/AuditLog';
+import { RolesPermissions } from '@/pages/RolesPermissions';
 import { Layout } from '@/components/Layout';
 import { ToastContainer } from '@/components/ToastContainer';
 import { useAuth } from '@/hooks/useAuth';
@@ -110,6 +111,7 @@ function App() {
           <Route path="/companies" element={<ConnectedCompanies />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/audit" element={<AuditLogPage />} />
+          <Route path="/roles" element={<RolesPermissions />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

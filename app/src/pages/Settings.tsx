@@ -57,7 +57,7 @@ export function Settings() {
   // Invite form state
   const [inviteData, setInviteData] = useState({
     emails: '',
-    role: 'operator' as User['role'],
+    roleId: '',
     companyIds: [] as string[],
     message: '',
   });
@@ -215,7 +215,7 @@ export function Settings() {
       for (const email of emails) {
         await api.post('users/invite', { 
             email, 
-            assignments: inviteData.companyIds.map(id => ({ companyId: id, role: inviteData.role.toUpperCase() }))
+            assignments: inviteData.companyIds.map(id => ({ companyId: id, roleId: inviteData.roleId }))
         });
       }
       toastSuccess('Success', 'Invitations sent');

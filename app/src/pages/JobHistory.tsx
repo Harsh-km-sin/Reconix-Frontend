@@ -23,9 +23,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 export function JobHistory() {
-  const { user, permissions } = useAuth();
-  const isApprover = user?.role === 'ADMIN' || user?.role === 'APPROVER';
-  const canSelfApprove = hasPermission(permissions, PERMISSIONS.SELF_APPROVE_JOBS);
+  const { permissions } = useAuth();
+  const canApprove = hasPermission(permissions, PERMISSIONS.JOBS_APPROVE);
   const [isApproving, setIsApproving] = useState(false);
   const [data, setData] = useState<ListResponse<Job> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,7 +210,7 @@ export function JobHistory() {
           <p className="text-[#555555]">View past executions and audit logs</p>
         </div>
         <div className="flex gap-3">
-          {isApprover && (
+          {canApprove && (
             <button
               onClick={() => {
                 setFilters({ dateRange: '7d', type: 'ALL', status: 'PENDING' });
@@ -537,7 +536,7 @@ export function JobHistory() {
                     </div>
                   </div>
 
-                  {selectedJob.status === 'PENDING' && !isApprover && (
+                  {selectedJob.status === 'PENDING' && !canApprove && (
                     <div className="bg-[#FFF4E5] border border-[#FFE0B2] rounded-lg p-4 flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-[#FFA726] flex-shrink-0 mt-0.5" />
                       <div>
@@ -621,8 +620,8 @@ export function JobHistory() {
                           <td className="py-2 px-3 text-sm text-right font-mono">
                             {item.expectedAmount !== null ? `$${Number(item.expectedAmount).toFixed(2)}` : '—'}
                           </td>
-                          <td className="py-2 px-3 text-sm text-right font-mono text-[#E53935]">
-                            {item.actualAmountDue !== null ? `$${Number(item.actualAmountDue).toFixed(2)}` : '—'}
+                          <td className="py-2 px-3 text-sm text-right font-mono text-[#1A1A1A]">
+                            {item.allocatedAmount != null ? `$${Number(item.allocatedAmount).toFixed(2)}` : '—'}
                           </td>
                           <td className="py-2 px-3">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.status === 'PROCESSED'
@@ -712,7 +711,7 @@ export function JobHistory() {
 
             {/* Footer */}
             <div className="p-6 border-t border-[#E0E0E0] flex justify-between items-center">
-              {selectedJob.status === 'PENDING' && isApprover && (selectedJob.createdBy?.id !== user?.id || canSelfApprove) ? (
+              {selectedJob.status === 'PENDING' && canApprove ? (
                 <button
                   onClick={handleApproveJob}
                   disabled={isApproving}

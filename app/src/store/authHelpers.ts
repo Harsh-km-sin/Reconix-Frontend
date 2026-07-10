@@ -44,7 +44,7 @@ export function clearStoredAuth(): void {
 }
 
 export function mapBackendToUser(data: AuthResponseData): StoredAuth {
-  const role = data.role ?? "OPERATOR";
+  const role = data.role ?? "";
   const companies: CompanyOption[] =
     data.companies?.map((c) => ({
       companyId: c.companyId,
@@ -57,6 +57,7 @@ export function mapBackendToUser(data: AuthResponseData): StoredAuth {
     email: data.user.email,
     fullName: data.user.name ?? data.user.email,
     role: role,
+    roleId: data.roleId,
     timezone: "UTC",
     dateFormat: "DD/MM/YYYY",
     isActive: true,

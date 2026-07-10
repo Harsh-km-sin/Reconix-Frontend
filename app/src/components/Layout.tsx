@@ -19,6 +19,7 @@ import {
   User as UserIcon,
   HelpCircle,
   Activity,
+  Shield,
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -45,6 +46,7 @@ const iconMap: Record<string, React.ElementType> = {
   Building2,
   Settings,
   Activity,
+  Shield,
 };
 
 export function Layout({ children, user, onLogout, permissions = [], companies = [], companyId = null, onSwitchCompany }: LayoutProps) {

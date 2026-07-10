@@ -29,7 +29,7 @@ export function JobReviewScreen({
 }) {
     const navigate = useNavigate();
     const { companyId: authCompanyId, permissions } = useAuth();
-    const canSelfApprove = hasPermission(permissions, PERMISSIONS.SELF_APPROVE_JOBS);
+    const canApprove = hasPermission(permissions, PERMISSIONS.JOBS_APPROVE);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isValidating, setIsValidating] = useState(true);
@@ -136,7 +136,9 @@ export function JobReviewScreen({
                     invoiceNumber: row['Invoice Number'],
                     xeroInvoiceId: row.dbInvoiceId,
                     contactName: row['Vendor Name'],
-                    expectedAmount: Number(row.Amount),
+                    // The amount actually being reversed/allocated: for a partial
+                    // reversal this is the entered partial amount, not the full bill.
+                    expectedAmount: config.type === 'PARTIAL' ? Number(config.amount) : Number(row.Amount),
                     reversalConfig: jobType === JOB_TYPE.INVOICE_REVERSAL ? {
                         reversalType: config.type,
                         partialAmount: config.type === 'PARTIAL' ? config.amount : undefined,
@@ -150,7 +152,7 @@ export function JobReviewScreen({
             // Users with the self-approve capability (e.g. ADMIN) approve and run
             // their own job in one step; everyone else saves it as PENDING for a
             // separate approver (four-eyes).
-            if (canSelfApprove) {
+            if (canApprove) {
                 await jobService.approveJob(job.id);
                 toast.success('Job created and scheduled for execution!');
             } else {
@@ -440,7 +442,7 @@ export function JobReviewScreen({
                     className="flex items-center gap-2 px-8 py-2.5 bg-[#13B5EA] text-white rounded-md font-bold hover:bg-[#0E92BC] disabled:opacity-50 transition-all shadow-md"
                 >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    {canSelfApprove ? 'Submit & Execute' : 'Submit for Approval'}
+                    {canApprove ? 'Submit & Execute' : 'Submit for Approval'}
                 </button>
             </div>
         </div>
