@@ -18,10 +18,14 @@ import {
   CreditCard,
   ExternalLink,
   Unlink,
+  History,
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
 import { AlertModal } from '@/components/ui/alert-modal';
+import { ErrorState } from '@/components/ui/error-state';
+import { SyncLogsModal } from '@/components/SyncLogsModal';
+import { getErrorMessage } from '@/lib/errors';
 
 
 type CompanyItem = {
@@ -53,6 +57,8 @@ export function ConnectedCompanies() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncComplete, setSyncComplete] = useState(false);
+  const [syncError, setSyncError] = useState<{ message: string; detail?: string | null } | null>(null);
+  const [syncLogsCompany, setSyncLogsCompany] = useState<CompanyItem | null>(null);
   const [syncOptions, setSyncOptions] = useState({
     contacts: true,
     accounts: true,
@@ -108,16 +114,24 @@ export function ConnectedCompanies() {
     if (!disconnectTenantId) return;
     setIsDisconnecting(true);
     try {
-      await api.delete(`xero/connections/${disconnectTenantId}`);
+      const result = await api.delete<{ message: string; revoked: boolean; revokeError: string | null }>(
+        `xero/connections/${disconnectTenantId}`
+      );
       setCompanies(prev => prev.filter(c => c.tenantId !== disconnectTenantId));
       if (activeTenantId === disconnectTenantId) {
         dispatch(setActiveTenantAction(null));
         setActiveTenantApi(null);
       }
-      toast.success('Organization disconnected');
+      // Revoking in Xero can fail (e.g. dead token) even though we removed it
+      // locally — say so rather than claiming a clean disconnect.
+      if (result?.revoked === false) {
+        toast.error(result.message, { duration: 8000 });
+      } else {
+        toast.success('Organization disconnected from Xero');
+      }
       setDisconnectTenantId(null);
     } catch (err) {
-      toast.error('Failed to disconnect');
+      toast.error(getErrorMessage(err, 'Failed to disconnect'));
     } finally {
       setIsDisconnecting(false);
     }
@@ -143,6 +157,7 @@ export function ConnectedCompanies() {
     setIsSyncing(true);
     setSyncProgress(0);
     setSyncComplete(false);
+    setSyncError(null);
 
     try {
       // Default is incremental (only records changed since the last sync);
@@ -155,7 +170,9 @@ export function ConnectedCompanies() {
       // Start polling
       const pollInterval = setInterval(async () => {
         try {
-          const status = await api.get<{ progress: number; status: string }>(`xero/sync/status/${jobId}`);
+          const status = await api.get<{ progress: number; status: string; failedReason?: string | null }>(
+            `xero/sync/status/${jobId}`
+          );
           setSyncProgress(status.progress);
 
           if (status.status === 'completed') {
@@ -167,18 +184,22 @@ export function ConnectedCompanies() {
           } else if (status.status === 'failed') {
             clearInterval(pollInterval);
             setIsSyncing(false);
-            toast.error('Sync failed. Please try again.');
+            setSyncError({
+              message: status.failedReason || 'The sync job failed. Check the server logs for details.',
+              detail: status.failedReason ?? null,
+            });
+            // Reflect any connection deactivation immediately.
+            api.get<CompanyItem[]>('xero/connections').then(setCompanies).catch(() => {});
           }
         } catch (err) {
           clearInterval(pollInterval);
           setIsSyncing(false);
-          toast.error('Failed to poll sync status');
+          setSyncError({ message: getErrorMessage(err, 'Failed to poll sync status') });
         }
       }, 2000);
     } catch (err) {
       setIsSyncing(false);
-      toast.error('Failed to start sync');
-
+      setSyncError({ message: getErrorMessage(err, 'Failed to start sync') });
     }
   };
 
@@ -219,6 +240,9 @@ export function ConnectedCompanies() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companies.map((company) => {
             const isActive = activeCompanyId === company.companyId || activeTenantId === company.tenantId;
+            // Connection health (distinct from the "active tenant" selection above).
+            // Xero deactivates a connection when its refresh token is rejected.
+            const isConnected = company.isActive !== false;
             return (
               <div
                 key={company.tenantId}
@@ -292,6 +316,17 @@ export function ConnectedCompanies() {
                   </div>
                 </div>
 
+                {/* Dead connection: Xero rejected the refresh token — only re-auth fixes it. */}
+                {!isConnected && (
+                  <ErrorState
+                    variant="inline"
+                    title="Connection expired"
+                    message="Xero rejected this connection's refresh token. Reconnect to resume syncing."
+                    className="mb-4"
+                    action={{ label: 'Reconnect', onClick: handleConnect, icon: ExternalLink }}
+                  />
+                )}
+
                 {/* Actions */}
                 <div className="flex items-center justify-between">
                   <button
@@ -300,8 +335,11 @@ export function ConnectedCompanies() {
                       setShowSyncModal(true);
                       setSyncComplete(false);
                       setSyncProgress(0);
+                      setSyncError(null);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 border border-[#13B5EA] text-[#13B5EA] rounded-md text-sm font-medium hover:bg-[#E5F6FC] transition-colors"
+                    disabled={!isConnected}
+                    title={!isConnected ? 'Reconnect this company before syncing' : undefined}
+                    className="flex items-center gap-2 px-4 py-2 border border-[#13B5EA] text-[#13B5EA] rounded-md text-sm font-medium hover:bg-[#E5F6FC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   >
                     <RefreshCw className="w-4 h-4" />
                     Sync Now
@@ -311,8 +349,11 @@ export function ConnectedCompanies() {
                       <MoreVertical className="w-5 h-5" />
                     </button>
                     <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#E0E0E0] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#555555] hover:bg-[#F5F5F5] transition-colors">
-                        <ExternalLink className="w-4 h-4" />
+                      <button
+                        onClick={() => setSyncLogsCompany(company)}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#555555] hover:bg-[#F5F5F5] transition-colors"
+                      >
+                        <History className="w-4 h-4" />
                         View Sync Log
                       </button>
                       <button
@@ -417,6 +458,22 @@ export function ConnectedCompanies() {
                       </div>
                     </label>
                   </div>
+
+                  {syncError && (
+                    <ErrorState
+                      variant="inline"
+                      title="Sync failed"
+                      message={syncError.message}
+                      detail={syncError.detail}
+                      className="mt-4"
+                      onDismiss={() => setSyncError(null)}
+                      action={
+                        selectedCompany && selectedCompany.isActive === false
+                          ? { label: 'Reconnect', onClick: handleConnect, icon: ExternalLink }
+                          : undefined
+                      }
+                    />
+                  )}
                 </div>
 
                 <div className="p-6 border-t border-[#E0E0E0] flex justify-end gap-3">
@@ -486,12 +543,21 @@ export function ConnectedCompanies() {
         onClose={() => setDisconnectTenantId(null)}
         onConfirm={confirmDisconnect}
         title="Disconnect Organization"
-        description="Are you sure you want to disconnect this organization? This will stop all synchronization."
+        description="Are you sure you want to disconnect this organization? This stops all synchronization and revokes Reconix's access in Xero. You'll need to reconnect to use it again."
         confirmText="Disconnect"
         cancelText="Cancel"
         variant="destructive"
         isLoading={isDisconnecting}
       />
+
+      {/* Sync Log history */}
+      {syncLogsCompany && (
+        <SyncLogsModal
+          tenantId={syncLogsCompany.tenantId}
+          tenantName={syncLogsCompany.tenantName}
+          onClose={() => setSyncLogsCompany(null)}
+        />
+      )}
     </div>
   );
 }

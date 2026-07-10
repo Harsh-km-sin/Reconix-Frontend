@@ -9,7 +9,22 @@ export interface ListInvoicesOptions extends InvoiceFilter {
     sortOrder?: 'asc' | 'desc';
 }
 
+/** One recorded sync run (SyncLog). */
+export interface SyncLogItem {
+    id: string;
+    syncType: 'FULL' | 'INCREMENTAL' | 'CONTACTS' | 'INVOICES' | 'OVERPAYMENTS';
+    status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+    recordsFetched: number | null;
+    startedAt: string;
+    completedAt: string | null;
+    errorMessage: string | null;
+}
+
 export const xeroService = {
+    /** Recent sync runs for a Xero tenant (most recent first). */
+    getSyncHistory: (tenantId: string) =>
+        api.get<SyncLogItem[]>(`xero/sync/history/${tenantId}`),
+
     getInvoices: async (options: ListInvoicesOptions = {}) => {
         const params = new URLSearchParams();
         if (options.page) params.append('page', options.page.toString());
