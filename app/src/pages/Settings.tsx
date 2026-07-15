@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, 
-  Info, 
-  QrCode,
+import {
+  ShieldCheck,
+  Info,
   User as UserIcon,
   Lock,
   Bell,
@@ -10,18 +9,11 @@ import {
   Globe,
   Users,
   Save,
-  Check,
-  Plus,
-  MoreVertical,
-  Mail,
   Loader2,
-  ArrowLeft,
   Calculator
 } from 'lucide-react';
-import type { User } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
-import { timezones, bankAccounts } from '@/constants/options';
-import { api, ApiClientError } from '@/lib/api';
+import { api } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 
 type SettingsTab = 'profile' | 'security' | 'notifications' | 'company' | 'accounting' | 'users' | 'batch';
@@ -29,15 +21,9 @@ type SettingsTab = 'profile' | 'security' | 'notifications' | 'company' | 'accou
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [isSaving, setIsSaving] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const { user: authUser, companies: authCompanies, companyId: authCompanyId, updateProfile: updateAuthProfile } = useAuth();
+  const { user: authUser, companyId: authCompanyId, updateProfile: updateAuthProfile } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
-
-  const currentCompanyName = authCompanyId
-    ? authCompanies.find((c) => c.companyId === authCompanyId)?.companyName ?? authCompanies[0]?.companyName ?? '—'
-    : authCompanies[0]?.companyName ?? '—';
 
   // Profile form state
   const [profile, setProfile] = useState({
@@ -54,28 +40,6 @@ export function Settings() {
     confirmPassword: '',
   });
 
-  // Invite form state
-  const [inviteData, setInviteData] = useState({
-    emails: '',
-    roleId: '',
-    companyIds: [] as string[],
-    message: '',
-  });
-  
-  const [inviteCompanies, setInviteCompanies] = useState<{ companyId: string; companyName: string }[]>([]);
-  const [inviteCompaniesLoading, setInviteCompaniesLoading] = useState(false);
-  const [inviteError, setInviteError] = useState('');
-  const [usersList, setUsersList] = useState<Array<{ id: string; email: string; fullName?: string; role?: string; status?: string }>>([]);
-  const [usersListLoading, setUsersListLoading] = useState(false);
-  
-  const [preferences, setPreferences] = useState<Record<string, boolean>>({
-    job_complete: true,
-    job_failed: true,
-    sync_error: true,
-    user_invited: true,
-    weekly_report: false,
-  });
-
   // MFA state
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaSetupStep, setMfaSetupStep] = useState(0); // 0: none, 1: setup
@@ -90,7 +54,6 @@ export function Settings() {
     defaultLineAmountType: 'exclusive',
     partialReversalAmountMode: 'TAX_EXCLUSIVE' as 'TAX_EXCLUSIVE' | 'BILL_TOTAL',
   });
-  const [companySettingsLoading, setCompanySettingsLoading] = useState(false);
   const [accountingSaving, setAccountingSaving] = useState(false);
 
   useEffect(() => {
@@ -103,7 +66,6 @@ export function Settings() {
           timezone: data.timezone ?? 'America/New_York',
           dateFormat: (data.dateFormat as any) || 'DD/MM/YYYY',
         });
-        if (data.preferences) setPreferences(prev => ({ ...prev, ...data.preferences }));
         setMfaEnabled(data.mfaEnabled ?? false);
       })
       .catch(() => {});
@@ -124,11 +86,6 @@ export function Settings() {
       .catch(() => {});
   }, [authCompanyId]);
 
-  const showSaveSuccess = () => {
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-  };
-
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
@@ -139,7 +96,7 @@ export function Settings() {
         dateFormat: profile.dateFormat || null,
       });
       if (data.name !== undefined) updateAuthProfile({ fullName: data.name ?? undefined });
-      showSaveSuccess();
+      toastSuccess('Saved', 'Profile updated');
     } catch {
       toastError('Error', 'Failed to save profile');
     } finally {
@@ -204,26 +161,6 @@ export function Settings() {
       toastError('Error', 'Failed to disable MFA');
     } finally {
       setIsMFALoading(false);
-    }
-  };
-
-  const handleInvite = async () => {
-    const emails = inviteData.emails.split(/[\s,]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
-    if (emails.length === 0) return;
-    setIsSaving(true);
-    try {
-      for (const email of emails) {
-        await api.post('users/invite', { 
-            email, 
-            assignments: inviteData.companyIds.map(id => ({ companyId: id, roleId: inviteData.roleId }))
-        });
-      }
-      toastSuccess('Success', 'Invitations sent');
-      setShowInviteModal(false);
-    } catch (err: any) {
-      toastError('Error', err.message || 'Invite failed');
-    } finally {
-      setIsSaving(false);
     }
   };
 
