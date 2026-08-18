@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { xeroService } from '@/modules/xero/services/xeroService';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
 import { JobReviewScreen } from '@/modules/jobs/components/JobReviewScreen';
 import toast from 'react-hot-toast';
 
@@ -275,10 +276,7 @@ export function JobManualBuilder() {
                             </div>
 
                             {isLoadingActiveBills ? (
-                                <div className="p-20 flex flex-col items-center justify-center gap-4">
-                                    <Loader2 className="w-10 h-10 text-brand animate-spin" />
-                                    <p className="text-ink-mid font-medium">Fetching Xero data...</p>
-                                </div>
+                                <LoadingState variant="page" message="Fetching Xero data…" className="min-h-0 py-20" />
                             ) : (
                                 <div className="max-h-[600px] overflow-y-auto scrollbar-thin">
                                     <table className="w-full">

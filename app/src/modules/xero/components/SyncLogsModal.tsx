@@ -1,11 +1,14 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { X, Loader2, RefreshCw, CheckCircle2, XCircle, Clock, History } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, Clock, History } from 'lucide-react';
 import { xeroService } from '@/modules/xero/services/xeroService';
 import type { SyncLogItem, SyncLogsModalProps } from '@/modules/xero/types';
 import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDateTime, formatDuration } from '@/lib/format';
 import { syncStatus, toneBadgeClasses } from '@/lib/status';
+import { Modal } from '@/ui_library/components/Modal';
+import { EmptyState } from '@/ui_library/feedback/EmptyState';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
 
 const SYNC_STATUS_ICON = {
   COMPLETED: CheckCircle2,
@@ -47,55 +50,49 @@ export function SyncLogsModal({ tenantId, tenantName, onClose }: SyncLogsModalPr
   }, [load]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] animate-fade-in p-4">
-      <div className="bg-surface rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] w-full max-w-[720px] max-h-[80vh] flex flex-col animate-scale-in">
-        {/* Header */}
-        <div className="p-6 border-b border-line flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-brand-light flex items-center justify-center">
-              <History className="w-5 h-5 text-brand" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-ink">Sync Log</h2>
-              <p className="text-sm text-ink-mid">{tenantName}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={load}
-              disabled={isLoading}
-              className="p-2 text-ink-light hover:text-brand rounded-md transition-colors disabled:opacity-50"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-            <button onClick={onClose} className="p-2 text-ink-light hover:text-ink-mid rounded-md transition-colors" aria-label="Close">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+    <Modal
+      open
+      onClose={onClose}
+      title="Sync Log"
+      description={tenantName}
+      size="lg"
+      footer={
+        <button
+          onClick={onClose}
+          className="px-6 py-2.5 border border-line text-ink-mid rounded-md text-sm font-medium hover:bg-line-light transition-colors"
+        >
+          Close
+        </button>
+      }
+    >
+      <div className="flex justify-end mb-3">
+        <button
+          onClick={load}
+          disabled={isLoading}
+          className="inline-flex items-center gap-1.5 p-2 text-ink-light hover:text-brand rounded-md transition-colors disabled:opacity-50"
+          title="Refresh"
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-auto p-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-ink-light">
-              <Loader2 className="w-6 h-6 animate-spin" />
-            </div>
-          ) : error ? (
-            <ErrorState
-              variant="card"
-              title="Couldn't load sync logs"
-              message={error}
-              action={{ label: 'Retry', onClick: load, icon: RefreshCw }}
-            />
-          ) : logs.length === 0 ? (
-            <div className="text-center py-16 text-ink-light">
-              <History className="w-10 h-10 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">No syncs recorded yet.</p>
-              <p className="text-xs mt-1">Run a sync and it will appear here.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+      {isLoading ? (
+        <LoadingState message="Loading sync history…" />
+      ) : error ? (
+        <ErrorState
+          variant="card"
+          title="Couldn't load sync logs"
+          message={error}
+          action={{ label: 'Retry', onClick: load, icon: RefreshCw }}
+        />
+      ) : logs.length === 0 ? (
+        <EmptyState
+          icon={History}
+          title="No syncs recorded yet"
+          message="Run a sync and it will appear here."
+        />
+      ) : (
+        <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-page">
@@ -137,20 +134,8 @@ export function SyncLogsModal({ tenantId, tenantName, onClose }: SyncLogsModalPr
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
         </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-line flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 border border-line text-ink-mid rounded-md text-sm font-medium hover:bg-line-light transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

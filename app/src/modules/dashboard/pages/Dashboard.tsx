@@ -10,6 +10,9 @@ import { jobBuilderPath } from '@/modules/jobs/navigation';
 import type { ModuleCard, QuickStat } from '@/modules/dashboard/types';
 import { formatDateTime, shortId } from '@/lib/format';
 import { jobStatus, toneBadgeClasses } from '@/lib/status';
+import { PageHeader } from '@/ui_library/components/PageHeader';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
+import { EmptyState } from '@/ui_library/feedback/EmptyState';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -142,12 +145,11 @@ export function Dashboard() {
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-ink mb-2">Dashboard</h1>
-          <p className="text-ink-mid">Welcome back{user?.fullName ? `, ${user.fullName}` : ''}. Here&apos;s what&apos;s happening today.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description={`Welcome back${user?.fullName ? `, ${user.fullName}` : ''}. Here's what's happening today.`}
+        className="mb-8"
+      />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 relative">
@@ -242,12 +244,14 @@ export function Dashboard() {
         <div className="relative min-h-[120px]">
           {isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-surface/80 z-10">
-              <Loader2 className="w-6 h-6 text-brand animate-spin" />
+              <LoadingState />
             </div>
           ) : recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-ink-light">
-              No recent jobs found.
-            </div>
+            <EmptyState
+              icon={ClipboardList}
+              title="No recent jobs"
+              message="Jobs you run will show up here."
+            />
           ) : (
             <table className="w-full">
               <thead>

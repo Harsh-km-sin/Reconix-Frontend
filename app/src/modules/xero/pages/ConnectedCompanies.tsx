@@ -22,12 +22,15 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/modules/auth/hooks/useAuth';
-import { AlertModal } from '@/ui_library/primitives/alert-modal';
 import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { SyncLogsModal } from '@/modules/xero/components/SyncLogsModal';
 import { getErrorMessage } from '@/lib/errors';
 import type { CompanyItem } from '@/modules/xero/types';
 import { formatDateTime, idPrefix } from '@/lib/format';
+import { PageHeader } from '@/ui_library/components/PageHeader';
+import { ConfirmDialog } from '@/ui_library/components/ConfirmDialog';
+import { EmptyState } from '@/ui_library/feedback/EmptyState';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
 
 
 export function ConnectedCompanies() {
@@ -191,31 +194,31 @@ export function ConnectedCompanies() {
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-ink mb-2">Connected Companies</h1>
-          <p className="text-ink-mid">Manage your Xero integrations and sync status</p>
-        </div>
-        <button
-          onClick={handleConnect}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand text-white rounded-md text-sm font-medium hover:bg-brand-hover transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Connect New Company
-        </button>
-      </div>
+      <PageHeader
+        title="Connected Companies"
+        description="Manage your Xero integrations and sync status"
+        actions={
+          <button
+            onClick={handleConnect}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand text-white rounded-md text-sm font-medium hover:bg-brand-hover transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Connect New Company
+          </button>
+        }
+      />
 
       {/* Company Cards Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-12 text-ink-light">
-          <Loader2 className="w-8 h-8 animate-spin mr-2" />
-          Loading companies...
-        </div>
+        <LoadingState message="Loading companies…" />
       ) : companies.length === 0 ? (
-        <div className="bg-surface border border-line rounded-lg p-12 text-center text-ink-light">
-          <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="font-medium text-ink-mid">No companies yet</p>
-          <p className="text-sm mt-1">Connect your Xero organization to get started.</p>
+        <div className="bg-surface border border-line rounded-lg">
+          <EmptyState
+            icon={Building2}
+            title="No companies yet"
+            message="Connect your Xero organization to get started."
+            action={{ label: 'Connect New Company', onClick: handleConnect, icon: Plus }}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -519,8 +522,8 @@ export function ConnectedCompanies() {
       )}
 
       {/* Disconnect Confirmation Modal */}
-      <AlertModal
-        isOpen={disconnectTenantId !== null}
+      <ConfirmDialog
+        open={disconnectTenantId !== null}
         onClose={() => setDisconnectTenantId(null)}
         onConfirm={confirmDisconnect}
         title="Disconnect Organization"

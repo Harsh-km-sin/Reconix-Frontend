@@ -14,6 +14,7 @@ import { AuditLogPage } from '@/modules/audit/pages/AuditLog';
 import { RolesPermissions } from '@/modules/rbac/pages/RolesPermissions';
 import { Layout } from '@/app/layout/Layout';
 import { ToastContainer } from '@/ui_library/feedback/ToastContainer';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { useToast } from '@/store/useToast';
 
@@ -54,14 +55,7 @@ function App() {
 
   // Show loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-page">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-brand-light border-t-brand rounded-full animate-spin" />
-          <p className="text-ink-mid">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState variant="page" message="Loading…" className="bg-page" />;
   }
 
   // Show auth screens if not authenticated

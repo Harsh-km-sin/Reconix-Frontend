@@ -11,20 +11,30 @@ import {
   AlertDialogTitle,
 } from "@/ui_library/primitives/alert-dialog"
 
-export interface AlertModalProps {
-  isOpen: boolean
+export interface ConfirmDialogProps {
+  open: boolean
+  /** Ignored while `isLoading`, so a running action cannot be dismissed. */
   onClose: () => void
+  /** May be async; the dialog stays open until it resolves. */
   onConfirm: () => void | Promise<void>
   title: string
   description: string
   confirmText?: string
   cancelText?: string
+  /** `destructive` makes the confirm button red. Use it for anything you cannot undo. */
   variant?: "default" | "destructive"
   isLoading?: boolean
 }
 
-export function AlertModal({
-  isOpen,
+/**
+ * A yes/no gate in front of a consequential action.
+ *
+ * Use this rather than Modal when the dialog's whole purpose is the decision:
+ * it is an alert dialog, so it takes focus and cannot be dismissed by clicking
+ * away mid-action.
+ */
+export function ConfirmDialog({
+  open,
   onClose,
   onConfirm,
   title,
@@ -33,14 +43,14 @@ export function AlertModal({
   cancelText = "Cancel",
   variant = "default",
   isLoading = false,
-}: AlertModalProps) {
+}: ConfirmDialogProps) {
   const handleConfirm = async (e: React.MouseEvent) => {
     e.preventDefault()
     await onConfirm()
   }
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
+    <AlertDialog open={open} onOpenChange={(next) => !next && !isLoading && onClose()}>
       <AlertDialogContent className="max-w-[400px]">
         <AlertDialogHeader className="text-center sm:text-center flex flex-col items-center">
           <AlertDialogTitle className="text-xl font-bold text-ink">

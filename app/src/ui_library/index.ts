@@ -12,7 +12,23 @@
 // ── feedback ────────────────────────────────────────────────────────────────
 export { ErrorState } from './feedback/ErrorState';
 export type { ErrorStateProps, ErrorStateAction, ErrorStateVariant } from './feedback/ErrorState';
+export { LoadingState } from './feedback/LoadingState';
+export type { LoadingStateProps, LoadingStateVariant } from './feedback/LoadingState';
+export { EmptyState } from './feedback/EmptyState';
+export type { EmptyStateProps, EmptyStateAction } from './feedback/EmptyState';
+export { Skeleton, SkeletonTable } from './feedback/Skeleton';
+export type { SkeletonProps, SkeletonTableProps } from './feedback/Skeleton';
 export { ToastContainer } from './feedback/ToastContainer';
+
+// ── components ──────────────────────────────────────────────────────────────
+export { Modal } from './components/Modal';
+export type { ModalProps, ModalSize } from './components/Modal';
+export { ConfirmDialog } from './components/ConfirmDialog';
+export type { ConfirmDialogProps } from './components/ConfirmDialog';
+export { PageHeader } from './components/PageHeader';
+export type { PageHeaderProps } from './components/PageHeader';
+export { Tabs } from './components/Tabs';
+export type { TabsProps, TabItem, TabsOrientation } from './components/Tabs';
 
 // ── hooks ───────────────────────────────────────────────────────────────────
 export { useIsMobile } from './hooks/useMobile';

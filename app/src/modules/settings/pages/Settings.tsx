@@ -16,6 +16,8 @@ import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { api } from '@/lib/api';
 import { useToast } from '@/store/useToast';
 import type { SettingsTab } from '@/modules/settings/types';
+import { PageHeader } from '@/ui_library/components/PageHeader';
+import { Tabs } from '@/ui_library/components/Tabs';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
@@ -175,29 +177,21 @@ export function Settings() {
 
   return (
     <div className="max-w-[1200px] mx-auto animate-fade-in p-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-ink mb-2">Settings</h1>
-        <p className="text-ink-mid">Manage your account and company preferences</p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Manage your account and company preferences"
+        className="mb-8"
+      />
 
       <div className="flex gap-8">
         <aside className="w-64 flex-shrink-0">
-          <div className="bg-surface border border-line rounded-lg overflow-hidden sticky top-24">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-brand-light text-brand border-l-4 border-l-brand'
-                    : 'text-ink-mid hover:bg-line-light border-l-4 border-l-transparent'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            tabs={tabs}
+            active={activeTab}
+            onChange={setActiveTab}
+            orientation="vertical"
+            className="sticky top-24"
+          />
         </aside>
 
         <div className="flex-1 space-y-6">

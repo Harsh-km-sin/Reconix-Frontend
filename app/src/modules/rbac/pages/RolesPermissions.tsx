@@ -3,6 +3,7 @@ import { Shield, Plus, Trash2, Loader2, Lock, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { roleService } from '@/modules/rbac/services/roleService';
 import type { PermissionDef, RoleWithPermissions, RolesPageMode } from '@/modules/rbac/types';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
 
 export function RolesPermissions() {
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
@@ -131,9 +132,7 @@ export function RolesPermissions() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-ink-light">
-          <Loader2 className="w-6 h-6 animate-spin" />
-        </div>
+        <LoadingState message="Loading roles…" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 mt-6">
           {/* Roles list */}

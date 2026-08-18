@@ -7,13 +7,15 @@ import {
   Eye, 
   X,
   FileJson,
-  Loader2
 } from 'lucide-react';
 import { auditService } from '@/modules/audit/services/auditService';
 import type { AuditLog } from '@/modules/audit/types';
 import toast from 'react-hot-toast';
 import { formatTimestamp } from '@/lib/format';
 import { auditActionTone, toneBadgeClasses } from '@/lib/status';
+import { PageHeader } from '@/ui_library/components/PageHeader';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
+import { EmptyState } from '@/ui_library/feedback/EmptyState';
 
 export function AuditLogPage() {
     const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -52,12 +54,11 @@ export function AuditLogPage() {
 
     return (
         <div className="max-w-[1440px] mx-auto animate-fade-in p-8">
-            <div className="mb-8 flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-ink mb-2">Audit Log</h1>
-                    <p className="text-ink-mid">Track every action taken within your organisation</p>
-                </div>
-            </div>
+            <PageHeader
+                title="Audit Log"
+                description="Track every action taken within your organisation"
+                className="mb-8"
+            />
 
             {/* Filters */}
             <div className="bg-surface border border-line rounded-xl p-6 mb-8 flex flex-wrap gap-4 items-center">
@@ -105,10 +106,7 @@ export function AuditLogPage() {
             <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm relative min-h-[400px]">
                 {isLoading && (
                     <div className="absolute inset-0 bg-surface/60 flex items-center justify-center z-10 backdrop-blur-[1px]">
-                        <div className="flex flex-col items-center gap-3">
-                            <Loader2 className="w-8 h-8 text-brand animate-spin" />
-                            <p className="text-sm text-ink-mid font-medium">Fetching logs...</p>
-                        </div>
+                        <LoadingState message="Fetching logs…" />
                     </div>
                 )}
                 
@@ -125,8 +123,12 @@ export function AuditLogPage() {
                     <tbody className="divide-y divide-line-light">
                         {logs.length === 0 && !isLoading ? (
                             <tr>
-                                <td colSpan={5} className="py-16 text-center text-ink-light text-sm">
-                                    No audit logs found matching your criteria.
+                                <td colSpan={5}>
+                                    <EmptyState
+                                        icon={Activity}
+                                        title="No audit logs"
+                                        message="Nothing matches your current filters."
+                                    />
                                 </td>
                             </tr>
                         ) : (

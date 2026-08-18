@@ -4,6 +4,10 @@ import { JOB_TYPE, JOB_TYPE_LABELS } from '@/types';
 import { jobService } from '@/modules/jobs/services/jobService';
 import { formatCurrency, formatDateTime, formatDuration, shortId } from '@/lib/format';
 import { jobStatus, jobItemStatus, toneBadgeClasses } from '@/lib/status';
+import { ConfirmDialog } from '@/ui_library/components/ConfirmDialog';
+import { PageHeader } from '@/ui_library/components/PageHeader';
+import { EmptyState } from '@/ui_library/feedback/EmptyState';
+import { LoadingState } from '@/ui_library/feedback/LoadingState';
 import type { Paginated } from '@/lib/types/api';
 import {
   Calendar,
@@ -175,13 +179,11 @@ export function JobHistory() {
 
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-ink mb-2">Job History</h1>
-          <p className="text-ink-mid">View past executions and audit logs</p>
-        </div>
-        <div className="flex gap-3">
+      <PageHeader
+        title="Job History"
+        description="View past executions and audit logs"
+        actions={
+          <>
           {canApprove && (
             <button
               onClick={() => {
@@ -206,8 +208,9 @@ export function JobHistory() {
             <Download className="w-4 h-4" />
             Export CSV
           </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Filters */}
       <div className="bg-surface border border-line rounded-lg p-4 mb-6">
@@ -274,7 +277,7 @@ export function JobHistory() {
       <div className="bg-surface border border-line rounded-lg overflow-hidden relative">
         {isLoading && (
           <div className="absolute inset-0 bg-surface/50 flex items-center justify-center z-10">
-            <Loader2 className="w-8 h-8 text-brand animate-spin" />
+            <LoadingState />
           </div>
         )}
         <table className="w-full">
@@ -394,10 +397,11 @@ export function JobHistory() {
         </table>
 
         {(!data || data.items.length === 0) && !isLoading && (
-          <div className="py-16 text-center">
-            <Search className="w-12 h-12 text-line mx-auto mb-4" />
-            <p className="text-ink-light">No jobs found matching your filters</p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="No jobs found"
+            message="Nothing matches your current filters. Try widening the date range or clearing the status filter."
+          />
         )}
       </div>
 
@@ -713,80 +717,30 @@ export function JobHistory() {
           </div>
         </div>
       )}
-      {/* Confirmation Modal */}
-      {jobToCancel && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in border border-line">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-danger-light rounded-full flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-6 h-6 text-danger" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-ink">Clear Stuck Job?</h3>
-                <p className="text-sm text-ink-mid">
-                  This will mark the job as <span className="font-semibold">FAILED</span> so you can retry it. 
-                  Only do this if the job has been "RUNNING" for an unusually long time.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setJobToCancel(null)}
-                disabled={isRetrying}
-                className="px-4 py-2 text-ink-mid font-medium hover:bg-line-light rounded-md transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleCancelJob(jobToCancel)}
-                disabled={isRetrying}
-                className="px-6 py-2 bg-danger text-white font-bold rounded-md hover:bg-danger-hover transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2"
-              >
-                {isRetrying && <Loader2 className="w-4 h-4 animate-spin" />}
-                Yes, Clear Job
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={jobToCancel !== null}
+        onClose={() => setJobToCancel(null)}
+        onConfirm={() => { if (jobToCancel) return handleCancelJob(jobToCancel); }}
+        title="Clear Stuck Job?"
+        description={
+          'This will mark the job as FAILED so you can retry it. Only do this if the job ' +
+          'has been RUNNING for an unusually long time.'
+        }
+        confirmText="Yes, Clear Job"
+        variant="destructive"
+        isLoading={isRetrying}
+      />
 
-      {/* Delete Confirmation Modal */}
-      {jobToDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-fade-in">
-          <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in border border-line">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-danger-light rounded-full flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-6 h-6 text-danger" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-ink">Delete Job Permanently?</h3>
-                <p className="text-sm text-ink-mid">
-                  This will remove the job and all its history. <span className="font-semibold text-danger">This action cannot be undone.</span>
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setJobToDelete(null)}
-                disabled={isDeleting}
-                className="px-4 py-2 text-ink-mid font-medium hover:bg-line-light rounded-md transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDeleteJob(jobToDelete)}
-                disabled={isDeleting}
-                className="px-6 py-2 bg-danger text-white font-bold rounded-md hover:bg-danger-hover transition-colors shadow-lg disabled:opacity-50 flex items-center gap-2"
-              >
-                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isDeleting ? 'Deleting...' : 'Delete Job'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={jobToDelete !== null}
+        onClose={() => setJobToDelete(null)}
+        onConfirm={() => { if (jobToDelete) return handleDeleteJob(jobToDelete); }}
+        title="Delete Job Permanently?"
+        description="This will remove the job and all its history. This action cannot be undone."
+        confirmText="Delete Job"
+        variant="destructive"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }
