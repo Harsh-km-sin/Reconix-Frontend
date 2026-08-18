@@ -606,10 +606,20 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  // Random width between 50 to 90%.
+  // Varied width between 50% and 90%, so a stack of skeletons looks like text
+  // rather than a set of identical bars.
+  //
+  // Diverges from upstream shadcn, which uses Math.random() here. Calling that
+  // during render is impure: React may render a component more than once and
+  // discard the result, so the bar can change width between passes — and the
+  // react-hooks lint rule rightly errors on it. Deriving the width from the
+  // component's own useId gives the same visual variety, deterministically.
+  const id = React.useId()
   const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  }, [])
+    let hash = 0
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0
+    return `${(Math.abs(hash) % 40) + 50}%`
+  }, [id])
 
   return (
     <div

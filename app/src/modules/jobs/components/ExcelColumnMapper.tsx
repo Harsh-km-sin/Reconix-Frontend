@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowRight, Check, MapPin, Save, List } from 'lucide-react';
 import { api } from '@/lib/api';
 import { JOB_TYPE } from '@/types';
 import toast from 'react-hot-toast';
-import type { ColumnMapping, ExcelColumnMapperProps } from '@/modules/jobs/types';
+import type {
+    ColumnMapping,
+    ExcelColumnMapperProps,
+    MappingTemplate,
+} from '@/modules/jobs/types';
 
 export function ExcelColumnMapper({
     fileData,
@@ -30,22 +34,38 @@ export function ExcelColumnMapper({
 
     const fields = getRequiredFields();
     const [mapping, setMapping] = useState<Record<string, string>>({});
-    const [templates, setTemplates] = useState<any[]>([]);
+    const [templates, setTemplates] = useState<MappingTemplate[]>([]);
     const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
     const [newTemplateName, setNewTemplateName] = useState('');
 
-    const fetchTemplates = async () => {
-        try {
-            const res: any = await api.get(`/excel/mapping?jobType=${jobType}`);
-            setTemplates(res);
-        } catch (error) {
-            console.error('Failed to fetch templates');
-        }
-    };
+    const loadTemplates = useCallback(
+        async (isCancelled?: () => boolean) => {
+            try {
+                const res: MappingTemplate[] = await api.get(
+                    `/excel/mapping?jobType=${jobType}`
+                );
+                if (!isCancelled?.()) setTemplates(res);
+            } catch {
+                console.error('Failed to fetch templates');
+            }
+        },
+        [jobType]
+    );
 
     useEffect(() => {
-        fetchTemplates();
-    }, [jobType]);
+        // The guard matters: switching job type mid-request would otherwise let
+        // the stale response land after the new one.
+        let cancelled = false;
+        // set-state-in-effect follows loadTemplates and sees setTemplates as
+        // reachable, so it flags this regardless of the await in between. This
+        // is a plain fetch-on-mount; without a data-fetching library, an effect
+        // with a cancellation guard is the idiomatic way to write it.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadTemplates(() => cancelled);
+        return () => {
+            cancelled = true;
+        };
+    }, [loadTemplates]);
 
     const saveTemplate = async () => {
         if (!newTemplateName.trim()) {
@@ -61,13 +81,13 @@ export function ExcelColumnMapper({
             toast.success('Template saved!');
             setShowTemplateNameInput(false);
             setNewTemplateName('');
-            fetchTemplates();
+            void loadTemplates();
         } catch (error) {
             toast.error('Failed to save template');
         }
     };
 
-    const applyTemplate = (template: any) => {
+    const applyTemplate = (template: MappingTemplate) => {
         // Only apply headers that actually exist in the current file
         const newMapping: Record<string, string> = {};
         Object.entries(template.mapping).forEach(([target, source]) => {

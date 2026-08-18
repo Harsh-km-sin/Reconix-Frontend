@@ -115,3 +115,14 @@ export interface SheetData {
   rowCount: number;
   rows: SheetRow[];
 }
+
+/**
+ * A saved column-mapping template: which spreadsheet header feeds which job
+ * field, keyed target -> source header.
+ */
+export interface MappingTemplate {
+  id: string;
+  name: string;
+  jobType: string;
+  mapping: Record<string, string>;
+}
