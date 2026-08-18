@@ -1,18 +1,10 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Login } from '@/modules/auth/pages/Login';
 import { Register } from '@/modules/auth/pages/Register';
 import { SetPassword } from '@/modules/auth/pages/SetPassword';
-import { Dashboard } from '@/modules/dashboard/pages/Dashboard';
-import { JobBuilderSelection } from '@/modules/jobs/pages/JobBuilderSelection';
-import { JobUploadBuilder } from '@/modules/jobs/pages/JobUploadBuilder';
-import { JobManualBuilder } from '@/modules/jobs/pages/JobManualBuilder';
-import { JobHistory } from '@/modules/jobs/pages/JobHistory';
-import { ConnectedCompanies } from '@/modules/xero/pages/ConnectedCompanies';
-import { Settings } from '@/modules/settings/pages/Settings';
-import { AuditLogPage } from '@/modules/audit/pages/AuditLog';
-import { RolesPermissions } from '@/modules/rbac/pages/RolesPermissions';
 import { Layout } from '@/app/layout/Layout';
+import { AppRoutes } from '@/app/routes';
 import { ToastContainer } from '@/ui_library/feedback/ToastContainer';
 import { LoadingState } from '@/ui_library/feedback/LoadingState';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
@@ -96,18 +88,7 @@ function App() {
   return (
     <>
       <Layout user={user} onLogout={handleLogout} permissions={permissions} companies={companies} companyId={companyId} onSwitchCompany={switchCompany}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/jobs/new" element={<JobBuilderSelection />} />
-          <Route path="/jobs/new/upload" element={<JobUploadBuilder />} />
-          <Route path="/jobs/new/manual" element={<JobManualBuilder />} />
-          <Route path="/history" element={<JobHistory />} />
-          <Route path="/companies" element={<ConnectedCompanies />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/audit" element={<AuditLogPage />} />
-          <Route path="/roles" element={<RolesPermissions />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppRoutes />
       </Layout>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>

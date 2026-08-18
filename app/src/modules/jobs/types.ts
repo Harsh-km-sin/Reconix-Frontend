@@ -80,3 +80,38 @@ export interface JobReviewRow {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [field: string]: any;
 }
+
+// ── spreadsheet upload contract (mirrors the backend excel module) ──────────
+
+/** One row of a sheet, keyed by its raw header text. */
+export type SheetRow = Record<string, string | number | boolean | null>;
+
+/** What the server can tell us about a sheet before one is chosen. */
+export interface SheetMeta {
+  name: string;
+  /** Data rows, excluding the header row. */
+  rowCount: number;
+  /** Header cells exactly as written in the file — the keys of each row. */
+  headers: string[];
+  /** Headers run through the server's alias table. Mapping hints only. */
+  normalizedHeaders: string[];
+  isAutoDetected: boolean;
+}
+
+/** Response of POST /excel/upload and GET /excel/:id/metadata. */
+export interface UploadMetadata {
+  uploadId: string;
+  fileName: string;
+  sizeBytes: number;
+  kind: 'excel' | 'csv';
+  sheets: SheetMeta[];
+  autoMappings: Record<string, string>;
+}
+
+/** Response of GET /excel/:id/sheet/:name. */
+export interface SheetData {
+  sheetName: string;
+  headers: string[];
+  rowCount: number;
+  rows: SheetRow[];
+}

@@ -113,7 +113,58 @@ export async function request<T>(
   return undefined as T;
 }
 
+/**
+ * Upload a file as multipart/form-data.
+ *
+ * Separate from `request` because the body is a FormData, and setting
+ * Content-Type by hand would strip the boundary the browser generates —
+ * the request would arrive unparseable.
+ */
+export async function upload<T>(
+  path: string,
+  file: File,
+  fieldName = "file"
+): Promise<T> {
+  const url = path.startsWith("http")
+    ? path
+    : `${API_BASE.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const tenantId = getActiveTenant();
+  if (tenantId) headers["X-Active-Tenant"] = tenantId;
+
+  const body = new FormData();
+  body.append(fieldName, file);
+
+  const res = await fetch(url, { method: "POST", headers, body });
+  const text = await res.text();
+
+  let json: ApiSuccess<T> | ApiError | null = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    // non-JSON response
+  }
+
+  if (!res.ok) {
+    const message =
+      json && "error" in json && json.error?.message
+        ? json.error.message
+        : res.statusText || "Upload failed";
+    const code = json && "error" in json && json.error?.code ? json.error.code : "UNKNOWN";
+    throw new ApiClientError(message, code, res.status);
+  }
+
+  if (json && "success" in json && json.success && "data" in json) {
+    return json.data as T;
+  }
+  throw new ApiClientError("Unexpected response from server", "UNKNOWN", res.status);
+}
+
 export const api = {
+  upload,
   get: <T>(path: string, auth = true) => request<T>(path, { method: "GET", auth }),
   post: <T>(path: string, body?: unknown, auth = true) =>
     request<T>(path, { method: "POST", body, auth }),

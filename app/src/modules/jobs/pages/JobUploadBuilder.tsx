@@ -1,64 +1,60 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
-import * as XLSX from 'xlsx';
 import { FileUp, FileSpreadsheet, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExcelColumnMapper } from '@/modules/jobs/components/ExcelColumnMapper';
 import { JobReviewScreen } from '@/modules/jobs/components/JobReviewScreen';
+import { excelService } from '@/modules/jobs/services/excelService';
 import { JOB_TYPE_LABELS, type JobType } from '@/types';
 import { JOB_TYPE_PARAM } from '@/modules/jobs/navigation';
+import { getErrorMessage } from '@/lib/errors';
+import { ErrorState } from '@/ui_library/feedback/ErrorState';
+import { PageHeader } from '@/ui_library/components/PageHeader';
+import type { FileData, UploadMetadata } from '@/modules/jobs/types';
+
+/** Mirrors the server's multer limit; checked here only to fail fast. */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 export function JobUploadBuilder() {
     const [searchParams] = useSearchParams();
     const type = searchParams.get(JOB_TYPE_PARAM) || 'Unknown';
 
     const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [showReview, setShowReview] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [mappedData, setMappedData] = useState<any[]>([]);
-    const [fileData, setFileData] = useState<{
-        fileName: string;
-        sheets: string[];
-        selectedSheet: string | null;
-        headers: string[];
-        rawRows: any[];
-        workbook: XLSX.WorkBook | null;
-    } | null>(null);
+    const [upload, setUpload] = useState<UploadMetadata | null>(null);
+    const [fileData, setFileData] = useState<FileData | null>(null);
 
     const getJobTitle = () => JOB_TYPE_LABELS[type as JobType] ?? 'Custom Job';
+
+    const reset = () => {
+        setUpload(null);
+        setFileData(null);
+        setError(null);
+    };
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
         if (!file) return;
 
-        // Check size limit (25MB)
-        if (file.size > 25 * 1024 * 1024) {
+        if (file.size > MAX_UPLOAD_BYTES) {
             toast.error('File size exceeds the 25MB limit');
             return;
         }
 
         setIsProcessing(true);
+        setError(null);
         try {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheets = workbook.SheetNames;
-
-            if (sheets.length === 0) {
-                throw new Error('No sheets found in the Excel file');
-            }
-
-            setFileData({
-                fileName: file.name,
-                sheets,
-                selectedSheet: null,
-                headers: [],
-                rawRows: [],
-                workbook
-            });
-
-        } catch (error) {
-            console.error('Failed to parse Excel file:', error);
-            toast.error('Failed to read Excel file. Please ensure it is a valid .xlsx file.');
+            // The server parses on upload, so this one call returns the sheet
+            // list, each sheet's headers and its row count.
+            setUpload(await excelService.upload(file));
+        } catch (err) {
+            const message = getErrorMessage(err, 'Failed to upload the file.');
+            setError(message);
+            toast.error(message);
         } finally {
             setIsProcessing(false);
         }
@@ -68,58 +64,68 @@ export function JobUploadBuilder() {
         onDrop,
         accept: {
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-            'application/vnd.ms-excel': ['.xls']
+            'application/vnd.ms-excel': ['.xls'],
+            'text/csv': ['.csv'],
         },
         maxFiles: 1,
-        disabled: isProcessing || !!fileData
+        disabled: isProcessing || !!upload,
     });
 
     const handleSheetSelect = async (sheetName: string) => {
-        if (!fileData || !fileData.workbook) return;
+        if (!upload) return;
         setIsProcessing(true);
+        setError(null);
 
         try {
-            const worksheet = fileData.workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+            const sheet = await excelService.getSheet(upload.uploadId, sheetName);
 
-            if (jsonData.length === 0) {
+            if (sheet.rows.length === 0) {
                 toast.error('The selected sheet is empty');
                 return;
             }
 
-            const headers = Object.keys(jsonData[0] || {});
-
-            setFileData(prev => prev ? {
-                ...prev,
-                selectedSheet: sheetName,
-                headers,
-                rawRows: jsonData
-            } : null);
-
-            toast.success(`Selected sheet: ${sheetName}`);
-        } catch (error) {
-            toast.error('Failed to read sheet data');
+            setFileData({
+                fileName: upload.fileName,
+                selectedSheet: sheet.sheetName,
+                headers: sheet.headers,
+                rawRows: sheet.rows,
+            });
+            toast.success(`Selected sheet: ${sheet.sheetName}`);
+        } catch (err) {
+            const message = getErrorMessage(err, 'Failed to read sheet data.');
+            setError(message);
+            toast.error(message);
         } finally {
             setIsProcessing(false);
         }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleMappingComplete = (data: any[]) => {
         setMappedData(data);
         setShowReview(true);
         toast.success(`Successfully mapped ${data.length} rows`);
     };
 
-
     return (
         <div className="max-w-[1000px] mx-auto animate-fade-in p-8">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-ink mb-2">Upload Data for {getJobTitle()}</h1>
-                <p className="text-ink-mid">Step 1: Upload your Excel file to begin</p>
-            </div>
+            <PageHeader
+                title={`Upload Data for ${getJobTitle()}`}
+                description="Step 1: Upload your spreadsheet to begin"
+                className="mb-8"
+            />
 
-            {!fileData ? (
+            {error && (
+                <ErrorState
+                    variant="card"
+                    title="Upload failed"
+                    message={error}
+                    onDismiss={() => setError(null)}
+                    className="mb-6"
+                />
+            )}
+
+            {!upload ? (
                 <div
                     {...getRootProps()}
                     className={`bg-surface border-2 border-dashed rounded-xl p-16 text-center transition-colors cursor-pointer
@@ -137,13 +143,18 @@ export function JobUploadBuilder() {
                     </div>
 
                     <h3 className="text-xl font-bold text-ink mb-3">
-                        {isDragActive ? 'Drop your Excel file here' : 'Click to upload or drag & drop'}
+                        {isProcessing
+                            ? 'Uploading…'
+                            : isDragActive
+                              ? 'Drop your file here'
+                              : 'Click to upload or drag & drop'}
                     </h3>
                     <p className="text-ink-light max-w-sm mx-auto">
-                        Upload your spreadsheet containing the job data. We support .xlsx and .xls formats up to 25MB.
+                        Upload your spreadsheet containing the job data. We support .xlsx, .xls and
+                        .csv up to 25MB.
                     </p>
                 </div>
-            ) : !fileData.selectedSheet ? (
+            ) : !fileData ? (
                 <div className="bg-surface border border-line rounded-xl overflow-hidden animate-slide-up">
                     <div className="p-6 border-b border-line flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -151,33 +162,44 @@ export function JobUploadBuilder() {
                                 <FileSpreadsheet className="w-5 h-5 text-success" />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-ink">{fileData.fileName}</h3>
-                                <p className="text-sm text-ink-light">{fileData.sheets.length} sheets discovered</p>
+                                <h3 className="font-semibold text-ink">{upload.fileName}</h3>
+                                <p className="text-sm text-ink-light">
+                                    {upload.sheets.length} sheet{upload.sheets.length === 1 ? '' : 's'} discovered
+                                </p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setFileData(null)}
-                            className="text-sm text-danger hover:underline"
-                        >
-                            Cancel & Upload Different File
+                        <button onClick={reset} className="text-sm text-danger hover:underline">
+                            Cancel &amp; Upload Different File
                         </button>
                     </div>
 
                     <div className="p-6">
-                        <h4 className="text-sm font-semibold text-ink-mid uppercase tracking-wide mb-4">Select Target Sheet</h4>
+                        <h4 className="text-sm font-semibold text-ink-mid uppercase tracking-wide mb-4">
+                            Select Target Sheet
+                        </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {fileData.sheets.map(sheet => (
+                            {upload.sheets.map((sheet) => (
                                 <button
-                                    key={sheet}
-                                    onClick={() => handleSheetSelect(sheet)}
+                                    key={sheet.name}
+                                    onClick={() => handleSheetSelect(sheet.name)}
                                     disabled={isProcessing}
-                                    className="flex items-center justify-between p-4 border border-line rounded-lg hover:border-brand hover:bg-brand-light transition-colors group"
+                                    className="flex items-center justify-between p-4 border border-line rounded-lg hover:border-brand hover:bg-brand-light transition-colors group text-left"
                                 >
-                                    <span className="font-medium text-ink truncate pr-4">{sheet}</span>
+                                    <span className="min-w-0 pr-4">
+                                        <span className="block font-medium text-ink truncate">
+                                            {sheet.name}
+                                        </span>
+                                        {/* Row counts come from the server now, so the picker can
+                                            show what is in each sheet before one is chosen. */}
+                                        <span className="block text-xs text-ink-light">
+                                            {sheet.rowCount} rows
+                                            {sheet.isAutoDetected ? ' · recognised layout' : ''}
+                                        </span>
+                                    </span>
                                     {isProcessing ? (
-                                        <Loader2 className="w-4 h-4 text-brand animate-spin" />
+                                        <Loader2 className="w-4 h-4 text-brand animate-spin flex-shrink-0" />
                                     ) : (
-                                        <ArrowRight className="w-4 h-4 text-ink-light group-hover:text-brand" />
+                                        <ArrowRight className="w-4 h-4 text-ink-light group-hover:text-brand flex-shrink-0" />
                                     )}
                                 </button>
                             ))}
@@ -185,7 +207,7 @@ export function JobUploadBuilder() {
                     </div>
                 </div>
             ) : showReview ? (
-                <JobReviewScreen 
+                <JobReviewScreen
                     jobType={type}
                     jobData={mappedData}
                     onBack={() => setShowReview(false)}
@@ -195,12 +217,11 @@ export function JobUploadBuilder() {
                     fileData={fileData}
                     jobType={type}
                     onMappingComplete={handleMappingComplete}
-                    onBack={() => setFileData({ ...fileData, selectedSheet: null })}
+                    onBack={() => setFileData(null)}
                 />
             )}
 
-            {/* Information Panel */}
-            {!fileData && (
+            {!upload && (
                 <div className="mt-8 bg-brand-light rounded-lg p-5 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" />
                     <div>
@@ -209,7 +230,7 @@ export function JobUploadBuilder() {
                             <li>Ensure your columns have a clear header row.</li>
                             <li>Only the first 10,000 rows will be processed in a single chunk.</li>
                             <li>Dates should be formatted cleanly (e.g., YYYY-MM-DD or DD/MM/YYYY).</li>
-                            <li>Values must be numeric and not strings like "$1,000".</li>
+                            <li>Values must be numeric and not strings like &quot;$1,000&quot;.</li>
                         </ul>
                     </div>
                 </div>
