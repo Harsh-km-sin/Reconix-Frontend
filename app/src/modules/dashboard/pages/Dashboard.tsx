@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { RefreshCw, CreditCard, PlusCircle, ClipboardList, Building2, Settings, TrendingUp, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
@@ -11,8 +11,7 @@ import type { ModuleCard, QuickStat } from '@/modules/dashboard/types';
 import { formatDateTime, shortId } from '@/lib/format';
 import { jobStatus, toneBadgeClasses } from '@/lib/status';
 import { PageHeader } from '@/ui_library/components/PageHeader';
-import { LoadingState } from '@/ui_library/feedback/LoadingState';
-import { EmptyState } from '@/ui_library/feedback/EmptyState';
+import { DataTable, type Column } from '@/ui_library/components/DataTable';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -142,6 +141,51 @@ export function Dashboard() {
     { label: 'Active Users', value: isLoading ? '—' : stats.activeUsers.toString(), subtext: 'From your organisation', icon: TrendingUp, trend: 'neutral' },
   ];
 
+  const activityColumns = useMemo<Column<Job>[]>(
+    () => [
+      {
+        key: 'id',
+        header: 'Job ID',
+        className: 'whitespace-nowrap',
+        render: (job) => (
+          <span className="font-mono text-sm font-medium text-brand">{shortId(job.id)}</span>
+        ),
+      },
+      {
+        key: 'jobType',
+        header: 'Type',
+        className: 'whitespace-nowrap',
+        render: (job) => <span className="text-ink">{job.jobType.replace(/_/g, ' ')}</span>,
+      },
+      {
+        key: 'createdAt',
+        header: 'Date',
+        className: 'whitespace-nowrap',
+        render: (job) => formatDateTime(job.createdAt),
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        className: 'whitespace-nowrap',
+        render: (job) => (
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(job.status).tone]}`}
+          >
+            {job.status}
+          </span>
+        ),
+      },
+      {
+        key: 'items',
+        header: 'Items',
+        align: 'right',
+        className: 'whitespace-nowrap',
+        render: (job) => `${job.processedCount}/${job.totalItems}`,
+      },
+    ],
+    []
+  );
+
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
       {/* Header */}
@@ -241,56 +285,17 @@ export function Dashboard() {
           </button>
         </div>
 
-        <div className="relative min-h-[120px]">
-          {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-surface/80 z-10">
-              <LoadingState />
-            </div>
-          ) : recentActivity.length === 0 ? (
-            <EmptyState
-              icon={ClipboardList}
-              title="No recent jobs"
-              message="Jobs you run will show up here."
-            />
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-page border-b border-line">
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Job ID</th>
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Type</th>
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Date</th>
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Status</th>
-                  <th className="py-3 px-6 text-right text-xs font-semibold text-ink-mid uppercase tracking-wide">Items</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-light">
-                {recentActivity.map((job) => (
-                  <tr key={job.id} className="hover:bg-page transition-colors group cursor-pointer" onClick={() => navigate('/history')}>
-                    <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="font-mono text-sm font-medium text-brand group-hover:underline">
-                        {shortId(job.id)}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="text-sm text-ink">{job.jobType.replace(/_/g, ' ')}</span>
-                    </td>
-                    <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="text-sm text-ink-mid">{formatDateTime(job.createdAt)}</span>
-                    </td>
-                    <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(job.status).tone]}`}>
-                        {job.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-6 whitespace-nowrap text-right">
-                      <span className="text-sm text-ink-mid">{job.processedCount}/{job.totalItems}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <DataTable
+          columns={activityColumns}
+          rows={recentActivity}
+          rowKey={(job) => job.id}
+          isLoading={isLoading}
+          emptyIcon={ClipboardList}
+          emptyTitle="No recent jobs"
+          emptyMessage="Jobs you run will show up here."
+          onRowClick={() => navigate('/history')}
+          className="border-0 rounded-none min-h-[120px]"
+        />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Filter, 
@@ -11,11 +11,10 @@ import {
 import { auditService } from '@/modules/audit/services/auditService';
 import type { AuditLog } from '@/modules/audit/types';
 import toast from 'react-hot-toast';
-import { formatTimestamp } from '@/lib/format';
+import { formatTimestamp, idPrefix, EM_DASH } from '@/lib/format';
 import { auditActionTone, toneBadgeClasses } from '@/lib/status';
 import { PageHeader } from '@/ui_library/components/PageHeader';
-import { LoadingState } from '@/ui_library/feedback/LoadingState';
-import { EmptyState } from '@/ui_library/feedback/EmptyState';
+import { DataTable, type Column } from '@/ui_library/components/DataTable';
 
 export function AuditLogPage() {
     const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -51,6 +50,81 @@ export function AuditLogPage() {
     useEffect(() => {
         fetchLogs();
     }, [page, actionFilter, resourceFilter]);
+
+    const columns = useMemo<Column<AuditLog>[]>(
+        () => [
+            {
+                key: 'createdAt',
+                header: 'Timestamp',
+                className: 'whitespace-nowrap',
+                render: (log) => (
+                    <div className="flex items-center gap-2 text-sm text-ink">
+                        <Clock className="w-4 h-4 text-ink-light" />
+                        {formatTimestamp(log.createdAt)}
+                    </div>
+                ),
+            },
+            {
+                key: 'user',
+                header: 'User',
+                className: 'whitespace-nowrap',
+                render: (log) => (
+                    <div className="flex items-center gap-3 font-medium text-ink">
+                        <div className="w-8 h-8 rounded-full bg-brand-light flex items-center justify-center text-brand text-xs">
+                            {log.user?.name?.[0] || 'S'}
+                        </div>
+                        <div className="text-sm">
+                            <p className="font-semibold">{log.user?.name || 'System'}</p>
+                            <p className="text-xs text-ink-light">
+                                {log.user?.email || 'automated-task@reconix.ai'}
+                            </p>
+                        </div>
+                    </div>
+                ),
+            },
+            {
+                key: 'action',
+                header: 'Action',
+                className: 'whitespace-nowrap',
+                render: (log) => (
+                    <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${toneBadgeClasses[auditActionTone(log.action)]}`}
+                    >
+                        {log.action}
+                    </span>
+                ),
+            },
+            {
+                key: 'resource',
+                header: 'Resource',
+                className: 'whitespace-nowrap',
+                render: (log) => (
+                    <div className="text-sm">
+                        <p className="font-medium text-ink">{log.resourceType || EM_DASH}</p>
+                        <p className="text-xs font-mono text-ink-light">
+                            {log.resourceId ? `${idPrefix(log.resourceId, 12)}…` : EM_DASH}
+                        </p>
+                    </div>
+                ),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                align: 'right',
+                className: 'whitespace-nowrap',
+                render: (log) => (
+                    <button
+                        onClick={() => setSelectedLog(log)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-ink-mid hover:text-brand transition-colors"
+                    >
+                        <Eye className="w-4 h-4" />
+                        View Details
+                    </button>
+                ),
+            },
+        ],
+        []
+    );
 
     return (
         <div className="max-w-[1440px] mx-auto animate-fade-in p-8">
@@ -102,105 +176,17 @@ export function AuditLogPage() {
                 </button>
             </div>
 
-            {/* Table */}
-            <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm relative min-h-[400px]">
-                {isLoading && (
-                    <div className="absolute inset-0 bg-surface/60 flex items-center justify-center z-10 backdrop-blur-[1px]">
-                        <LoadingState message="Fetching logs…" />
-                    </div>
-                )}
-                
-                <table className="w-full">
-                    <thead>
-                        <tr className="bg-page border-b border-line">
-                            <th className="py-4 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wider">Timestamp</th>
-                            <th className="py-4 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wider">User</th>
-                            <th className="py-4 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wider">Action</th>
-                            <th className="py-4 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wider">Resource</th>
-                            <th className="py-4 px-6 text-right text-xs font-semibold text-ink-mid uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line-light">
-                        {logs.length === 0 && !isLoading ? (
-                            <tr>
-                                <td colSpan={5}>
-                                    <EmptyState
-                                        icon={Activity}
-                                        title="No audit logs"
-                                        message="Nothing matches your current filters."
-                                    />
-                                </td>
-                            </tr>
-                        ) : (
-                            logs.map((log) => (
-                                <tr key={log.id} className="hover:bg-[#F9FAFB] transition-colors group">
-                                    <td className="py-4 px-6 whitespace-nowrap">
-                                        <div className="flex items-center gap-2 text-sm text-ink">
-                                            <Clock className="w-4 h-4 text-ink-light" />
-                                            {formatTimestamp(log.createdAt)}
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-6 whitespace-nowrap">
-                                        <div className="flex items-center gap-3 font-medium text-ink">
-                                            <div className="w-8 h-8 rounded-full bg-brand-light flex items-center justify-center text-brand text-xs">
-                                                {log.user?.name?.[0] || 'S'}
-                                            </div>
-                                            <div className="text-sm">
-                                                <p className="font-semibold">{log.user?.name || 'System'}</p>
-                                                <p className="text-xs text-ink-light">{log.user?.email || 'automated-task@reconix.ai'}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-6 whitespace-nowrap">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${toneBadgeClasses[auditActionTone(log.action)]}`}>
-                                            {log.action}
-                                        </span>
-                                    </td>
-                                    <td className="py-4 px-6 whitespace-nowrap">
-                                        <div className="text-sm">
-                                            <p className="font-medium text-ink">{log.resourceType || '—'}</p>
-                                            <p className="text-xs font-mono text-ink-light">{log.resourceId?.substring(0, 12)}...</p>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-6 whitespace-nowrap text-right">
-                                        <button 
-                                            onClick={() => setSelectedLog(log)}
-                                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-ink-mid hover:text-brand transition-colors"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            View Details
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="mt-8 flex items-center justify-between">
-                <p className="text-sm text-ink-mid">
-                    Showing <span className="font-semibold text-ink">{logs.length}</span> of <span className="font-semibold text-ink">{total}</span> total logs
-                </p>
-                
-                <div className="flex gap-2">
-                    <button 
-                        disabled={page === 1 || isLoading}
-                        onClick={() => setPage(p => p - 1)}
-                        className="px-4 py-2 border border-line rounded-lg text-sm font-medium hover:bg-page disabled:opacity-50 transition-colors"
-                    >
-                        Previous
-                    </button>
-                    <button 
-                        disabled={page * limit >= total || isLoading}
-                        onClick={() => setPage(p => p + 1)}
-                        className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-hover disabled:opacity-50 transition-all shadow-sm"
-                    >
-                        Next
-                    </button>
-                </div>
-            </div>
+            <DataTable
+                columns={columns}
+                rows={logs}
+                rowKey={(log) => log.id}
+                isLoading={isLoading}
+                emptyIcon={Activity}
+                emptyTitle="No audit logs"
+                emptyMessage="Nothing matches your current filters."
+                pagination={{ mode: 'server', page, limit, total, onPageChange: setPage }}
+                className="min-h-[400px]"
+            />
 
             {/* Log Detail Drawer/Modal */}
             {selectedLog && (

@@ -58,3 +58,25 @@ export interface JobReviewScreenProps {
   jobData: any[];
   onBack: () => void;
 }
+
+/** An outstanding Xero bill, as listed in the manual job builder. */
+export interface ActiveBill {
+  xeroInvoiceId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  amountDue: number | null;
+}
+
+/**
+ * One row of the review grid: an uploaded/entered line plus the vendor it is
+ * grouped under and its position in the original upload.
+ *
+ * `originalIndex` is the key into `itemConfigs` and `validationReports`, so it
+ * must survive grouping — it is the row's position before rows were bucketed.
+ */
+export interface JobReviewRow {
+  vendor: string;
+  originalIndex: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [field: string]: any;
+}

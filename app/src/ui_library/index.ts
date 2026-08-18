@@ -21,6 +21,15 @@ export type { SkeletonProps, SkeletonTableProps } from './feedback/Skeleton';
 export { ToastContainer } from './feedback/ToastContainer';
 
 // ── components ──────────────────────────────────────────────────────────────
+export { DataTable } from './components/DataTable';
+export type {
+  DataTableProps,
+  DataTablePagination,
+  Column,
+  ColumnAlign,
+} from './components/DataTable';
+export { Pagination } from './components/Pagination';
+export type { PaginationProps } from './components/Pagination';
 export { Modal } from './components/Modal';
 export type { ModalProps, ModalSize } from './components/Modal';
 export { ConfirmDialog } from './components/ConfirmDialog';

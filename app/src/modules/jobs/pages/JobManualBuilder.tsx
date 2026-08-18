@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     Search,
@@ -12,6 +12,8 @@ import {
 import { xeroService } from '@/modules/xero/services/xeroService';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { LoadingState } from '@/ui_library/feedback/LoadingState';
+import { DataTable, type Column } from '@/ui_library/components/DataTable';
+import type { ActiveBill } from '@/modules/jobs/types';
 import { JobReviewScreen } from '@/modules/jobs/components/JobReviewScreen';
 import toast from 'react-hot-toast';
 
@@ -36,7 +38,7 @@ export function JobManualBuilder() {
 
     // Current supplier interface
     const [activeSupplier, setActiveSupplier] = useState<any | null>(null);
-    const [activeBills, setActiveBills] = useState<any[]>([]);
+    const [activeBills, setActiveBills] = useState<ActiveBill[]>([]);
     const [isLoadingActiveBills, setIsLoadingActiveBills] = useState(false);
 
     // Search for suppliers
@@ -150,8 +152,50 @@ export function JobManualBuilder() {
         return flattened;
     };
 
+    const billColumns = useMemo<Column<ActiveBill>[]>(
+        () => [
+            {
+                key: 'selected',
+                header: '',
+                className: 'w-12',
+                render: (bill) => {
+                    const isSelected = !!activeSupplier &&
+                        basket[activeSupplier.xeroContactId]?.selectedBillIds.has(bill.xeroInvoiceId);
+                    return (
+                        <div
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-brand border-brand' : 'border-line'}`}
+                        >
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={4} />}
+                        </div>
+                    );
+                },
+            },
+            {
+                key: 'invoiceNumber',
+                header: 'Invoice #',
+                className: 'font-mono text-xs font-bold',
+                render: (bill) => <span className="text-ink">{bill.invoiceNumber}</span>,
+            },
+            {
+                key: 'invoiceDate',
+                header: 'Date',
+                className: 'text-xs',
+                render: (bill) => formatDate(bill.invoiceDate),
+            },
+            {
+                key: 'amountDue',
+                header: 'Due Amount',
+                align: 'right',
+                className: 'font-mono font-bold',
+                render: (bill) => <span className="text-ink">{formatCurrency(bill.amountDue ?? 0)}</span>,
+            },
+        ],
+        [activeSupplier, basket]
+    );
+
     if (step === 2) {
-        return (
+
+    return (
             <div className="max-w-[1200px] mx-auto p-8 animate-fade-in">
                 <JobReviewScreen
                     jobType={type}
@@ -278,51 +322,23 @@ export function JobManualBuilder() {
                             {isLoadingActiveBills ? (
                                 <LoadingState variant="page" message="Fetching Xero data…" className="min-h-0 py-20" />
                             ) : (
-                                <div className="max-h-[600px] overflow-y-auto scrollbar-thin">
-                                    <table className="w-full">
-                                        <thead className="bg-page border-b border-line sticky top-0">
-                                            <tr>
-                                                <th className="py-3 px-6 text-left w-12"></th>
-                                                <th className="py-3 px-6 text-left text-xs font-bold text-ink-mid uppercase tracking-wider">Invoice #</th>
-                                                <th className="py-3 px-6 text-left text-xs font-bold text-ink-mid uppercase tracking-wider">Date</th>
-                                                <th className="py-3 px-6 text-right text-xs font-bold text-ink-mid uppercase tracking-wider">Due Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-line-light">
-                                            {activeBills.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={4} className="py-20 text-center text-ink-light">
-                                                        <Package className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                                                        <p className="font-medium text-lg">No outstanding bills found</p>
-                                                        <p className="text-sm">This supplier has no unpaid AUTHORISED invoices in Xero.</p>
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                activeBills.map(bill => {
-                                                    const isSelected = basket[activeSupplier.xeroContactId]?.selectedBillIds.has(bill.xeroInvoiceId);
-                                                    return (
-                                                        <tr
-                                                            key={bill.xeroInvoiceId}
-                                                            onClick={() => toggleBillSelection(bill.xeroInvoiceId)}
-                                                            className={`cursor-pointer transition-colors ${isSelected ? 'bg-brand-light' : 'hover:bg-[#F9FAFB]'}`}
-                                                        >
-                                                            <td className="py-4 px-6">
-                                                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-brand border-brand' : 'border-line'}`}>
-                                                                    {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={4} />}
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-4 px-6 font-mono text-xs font-bold text-ink">{bill.invoiceNumber}</td>
-                                                            <td className="py-4 px-6 text-xs text-ink-mid">{formatDate(bill.invoiceDate)}</td>
-                                                            <td className="py-4 px-6 text-right font-mono font-bold text-ink">
-                                                                {formatCurrency(bill.amountDue ?? 0)}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <DataTable
+                                    columns={billColumns}
+                                    rows={activeBills}
+                                    rowKey={(bill) => bill.xeroInvoiceId}
+                                    emptyIcon={Package}
+                                    emptyTitle="No outstanding bills found"
+                                    emptyMessage="This supplier has no unpaid AUTHORISED invoices in Xero."
+                                    onRowClick={(bill) => toggleBillSelection(bill.xeroInvoiceId)}
+                                    rowClassName={(bill) =>
+                                        basket[activeSupplier.xeroContactId]?.selectedBillIds.has(bill.xeroInvoiceId)
+                                            ? 'bg-brand-light'
+                                            : ''
+                                    }
+                                    stickyHeader
+                                    bodyClassName="max-h-[600px] overflow-y-auto scrollbar-thin"
+                                    className="border-0 rounded-none"
+                                />
                             )}
                         </div>
                     ) : (

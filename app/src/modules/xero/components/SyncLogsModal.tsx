@@ -1,20 +1,26 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, CheckCircle2, XCircle, Clock, History } from 'lucide-react';
 import { xeroService } from '@/modules/xero/services/xeroService';
 import type { SyncLogItem, SyncLogsModalProps } from '@/modules/xero/types';
-import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/errors';
-import { formatDateTime, formatDuration } from '@/lib/format';
+import { formatDateTime, formatDuration, EM_DASH } from '@/lib/format';
 import { syncStatus, toneBadgeClasses } from '@/lib/status';
 import { Modal } from '@/ui_library/components/Modal';
-import { EmptyState } from '@/ui_library/feedback/EmptyState';
-import { LoadingState } from '@/ui_library/feedback/LoadingState';
+import { DataTable, type Column } from '@/ui_library/components/DataTable';
 
 const SYNC_STATUS_ICON = {
   COMPLETED: CheckCircle2,
   FAILED: XCircle,
   RUNNING: Clock,
 } as const;
+
+const SYNC_TYPE_LABEL: Record<SyncLogItem['syncType'], string> = {
+  FULL: 'Full',
+  INCREMENTAL: 'Incremental',
+  CONTACTS: 'Contacts',
+  INVOICES: 'Invoices',
+  OVERPAYMENTS: 'Overpayments',
+};
 
 function StatusBadge({ status }: { status: SyncLogItem['status'] }) {
   const { label, tone } = syncStatus(status);
@@ -49,6 +55,46 @@ export function SyncLogsModal({ tenantId, tenantName, onClose }: SyncLogsModalPr
     load();
   }, [load]);
 
+  const columns = useMemo<Column<SyncLogItem>[]>(
+    () => [
+      {
+        key: 'startedAt',
+        header: 'Started',
+        className: 'whitespace-nowrap',
+        render: (log) => <span className="text-ink">{formatDateTime(log.startedAt)}</span>,
+      },
+      {
+        key: 'syncType',
+        header: 'Mode',
+        render: (log) => SYNC_TYPE_LABEL[log.syncType] ?? log.syncType,
+      },
+      {
+        key: 'recordsFetched',
+        header: 'Records',
+        align: 'right',
+        className: 'font-mono',
+        render: (log) => (
+          <span className="text-ink">
+            {log.status === 'COMPLETED' ? (log.recordsFetched ?? 0) : EM_DASH}
+          </span>
+        ),
+      },
+      {
+        key: 'duration',
+        header: 'Duration',
+        align: 'right',
+        className: 'font-mono',
+        render: (log) => formatDuration(log.startedAt, log.completedAt),
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        render: (log) => <StatusBadge status={log.status} />,
+      },
+    ],
+    []
+  );
+
   return (
     <Modal
       open
@@ -76,66 +122,22 @@ export function SyncLogsModal({ tenantId, tenantName, onClose }: SyncLogsModalPr
         </button>
       </div>
 
-      {isLoading ? (
-        <LoadingState message="Loading sync history…" />
-      ) : error ? (
-        <ErrorState
-          variant="card"
-          title="Couldn't load sync logs"
-          message={error}
-          action={{ label: 'Retry', onClick: load, icon: RefreshCw }}
-        />
-      ) : logs.length === 0 ? (
-        <EmptyState
-          icon={History}
-          title="No syncs recorded yet"
-          message="Run a sync and it will appear here."
-        />
-      ) : (
-        <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-page">
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Started</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Mode</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-ink-mid">Records</th>
-                    <th className="py-2 px-3 text-right text-xs font-semibold text-ink-mid">Duration</th>
-                    <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => (
-                    <Fragment key={log.id}>
-                      <tr className="border-b border-line-light">
-                        <td className="py-2.5 px-3 text-sm text-ink whitespace-nowrap">
-                          {formatDateTime(log.startedAt)}
-                        </td>
-                        <td className="py-2.5 px-3 text-sm text-ink-mid">
-                          {log.syncType === 'FULL' ? 'Full' : log.syncType === 'INCREMENTAL' ? 'Incremental' : log.syncType}
-                        </td>
-                        <td className="py-2.5 px-3 text-sm text-right font-mono text-ink">
-                          {log.status === 'COMPLETED' ? (log.recordsFetched ?? 0) : '—'}
-                        </td>
-                        <td className="py-2.5 px-3 text-sm text-right font-mono text-ink-mid">
-                          {formatDuration(log.startedAt, log.completedAt)}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <StatusBadge status={log.status} />
-                        </td>
-                      </tr>
-                      {log.errorMessage && (
-                        <tr>
-                          <td colSpan={5} className="px-3 pb-2.5">
-                            <p className="text-xs text-danger break-words">{log.errorMessage}</p>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={logs}
+        rowKey={(log) => log.id}
+        isLoading={isLoading}
+        error={error}
+        onRetry={load}
+        emptyIcon={History}
+        emptyTitle="No syncs recorded yet"
+        emptyMessage="Run a sync and it will appear here."
+        renderSubRow={(log) =>
+          log.errorMessage ? (
+            <p className="text-xs text-danger break-words">{log.errorMessage}</p>
+          ) : null
+        }
+      />
     </Modal>
   );
 }

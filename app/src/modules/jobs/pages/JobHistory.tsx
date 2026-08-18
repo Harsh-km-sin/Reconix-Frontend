@@ -1,19 +1,17 @@
-import { useState, useEffect } from 'react';
-import type { Job, JobType, JobStatus } from '@/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { Job, JobItem, JobType, JobStatus } from '@/types';
 import { JOB_TYPE, JOB_TYPE_LABELS } from '@/types';
 import { jobService } from '@/modules/jobs/services/jobService';
-import { formatCurrency, formatDateTime, formatDuration, shortId } from '@/lib/format';
+import { formatCurrency, formatDateTime, formatDuration, shortId, EM_DASH } from '@/lib/format';
 import { jobStatus, jobItemStatus, toneBadgeClasses } from '@/lib/status';
 import { ConfirmDialog } from '@/ui_library/components/ConfirmDialog';
 import { PageHeader } from '@/ui_library/components/PageHeader';
-import { EmptyState } from '@/ui_library/feedback/EmptyState';
-import { LoadingState } from '@/ui_library/feedback/LoadingState';
+import { DataTable, type Column } from '@/ui_library/components/DataTable';
 import type { Paginated } from '@/lib/types/api';
 import {
   Calendar,
   Search,
-  ChevronDown,
-  ChevronUp,
+  ListChecks,
   Eye,
   RefreshCw,
   Download,
@@ -27,6 +25,9 @@ import {
 import toast from 'react-hot-toast';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+
+/** Rows per page. Sent to the API and used by the pager, so they cannot drift. */
+const PAGE_SIZE = 10;
 
 export function JobHistory() {
   const { permissions } = useAuth();
@@ -54,7 +55,7 @@ export function JobHistory() {
     try {
       const response = await jobService.listJobs({
         page,
-        limit: 10,
+        limit: PAGE_SIZE,
         type: filters.type,
         status: filters.status,
         sortBy: sortConfig.key,
@@ -177,6 +178,179 @@ export function JobHistory() {
 
   const getTypeLabel = (type: JobType) => JOB_TYPE_LABELS[type] ?? type;
 
+  const itemColumns = useMemo<Column<JobItem>[]>(
+    () => [
+      {
+        key: 'index',
+        header: 'Index',
+        render: (_item, i) => i + 1,
+      },
+      {
+        key: 'reference',
+        header: 'Reference',
+        className: 'font-mono',
+        render: (item) => (
+          <span className="text-brand">
+            {item.invoiceNumber || item.xeroInvoiceId || item.xeroOverpaymentId || EM_DASH}
+          </span>
+        ),
+      },
+      {
+        key: 'vendor',
+        header: 'Vendor',
+        render: (item) => <span className="text-ink">{item.contactName || EM_DASH}</span>,
+      },
+      {
+        key: 'expected',
+        header: 'Expected',
+        align: 'right',
+        className: 'font-mono',
+        render: (item) => formatCurrency(item.expectedAmount),
+      },
+      {
+        key: 'actual',
+        header: 'Actual',
+        align: 'right',
+        className: 'font-mono',
+        render: (item) => <span className="text-ink">{formatCurrency(item.allocatedAmount)}</span>,
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        render: (item) => (
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${toneBadgeClasses[jobItemStatus(item.status).tone]}`}
+          >
+            {item.status}
+          </span>
+        ),
+      },
+      {
+        key: 'details',
+        header: 'Details',
+        className: 'min-w-[200px]',
+        render: (item) =>
+          item.failureReason ? (
+            <p className="text-[10px] text-danger font-medium leading-tight break-words">
+              {item.failureReason}
+            </p>
+          ) : (
+            <span className="text-[10px] text-ink-light italic">No issues</span>
+          ),
+      },
+    ],
+    []
+  );
+
+  const jobColumns = useMemo<Column<Job>[]>(
+    () => [
+      {
+        key: 'id',
+        header: 'Job ID',
+        sortable: true,
+        render: (job) => <span className="font-mono text-brand">{shortId(job.id)}</span>,
+      },
+      {
+        key: 'jobType',
+        header: 'Type',
+        sortable: true,
+        render: (job) => (
+          <span className="px-2.5 py-1 bg-brand-light text-brand text-xs font-semibold rounded-full">
+            {getTypeLabel(job.jobType)}
+          </span>
+        ),
+      },
+      {
+        key: 'createdAt',
+        header: 'Date/Time',
+        sortable: true,
+        render: (job) => formatDateTime(job.createdAt),
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        sortable: true,
+        render: (job) => (
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(job.status).tone]}`}
+          >
+            {job.status}
+          </span>
+        ),
+      },
+      {
+        key: 'createdBy',
+        header: 'Created By',
+        render: (job) => (
+          <div className="text-ink">
+            <div>{job.createdBy?.name || 'System'}</div>
+            {job.status === 'PENDING' && (
+              <div className="text-xs text-warning mt-0.5 font-medium">Awaiting Approval</div>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'items',
+        header: 'Items',
+        render: (job) => `${job.processedCount}/${job.totalItems}`,
+      },
+      {
+        key: 'actions',
+        header: 'Actions',
+        render: (job) => (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setSelectedJob(job);
+                try {
+                  setSelectedJob(await jobService.getJob(job.id));
+                } catch (err) {
+                  console.error('Failed to fetch job details:', err);
+                }
+              }}
+              className="p-1.5 text-ink-light hover:text-brand transition-colors"
+              title="View Details"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            {job.status === 'FAILED' && (
+              <button
+                onClick={() => handleRetryJob(job.id)}
+                disabled={isRetrying}
+                className="p-1.5 text-ink-light hover:text-success transition-colors disabled:opacity-50"
+                title="Retry"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+            {job.status === 'RUNNING' && (
+              <button
+                onClick={() => setJobToCancel(job.id)}
+                disabled={isRetrying || isDeleting}
+                className="p-1.5 text-ink-light hover:text-danger transition-colors disabled:opacity-50"
+                title="Clear Stuck Job"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            {(job.status === 'PENDING' || job.status === 'FAILED') && (
+              <button
+                onClick={() => setJobToDelete(job.id)}
+                disabled={isRetrying || isDeleting}
+                className="p-1.5 text-ink-light hover:text-danger transition-colors disabled:opacity-50"
+                title="Delete Job"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [isRetrying, isDeleting]
+  );
+
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
       <PageHeader
@@ -268,167 +442,25 @@ export function JobHistory() {
         </div>
       </div>
 
-      {/* Results Count */}
-      <p className="text-sm text-ink-light mb-4">
-        {isLoading ? 'Loading jobs...' : `Showing ${data?.items.length || 0} of ${data?.total || 0} jobs`}
-      </p>
-
-      {/* Jobs Table */}
-      <div className="bg-surface border border-line rounded-lg overflow-hidden relative">
-        {isLoading && (
-          <div className="absolute inset-0 bg-surface/50 flex items-center justify-center z-10">
-            <LoadingState />
-          </div>
-        )}
-        <table className="w-full">
-          <thead>
-            <tr className="bg-page">
-              {[
-                { key: 'id', label: 'Job ID' },
-                { key: 'jobType', label: 'Type' },
-                { key: 'createdAt', label: 'Date/Time' },
-                { key: 'status', label: 'Status' },
-              ].map(column => (
-                <th
-                  key={column.key}
-                  onClick={() => handleSort(column.key)}
-                  className="py-3 px-4 border-b-2 border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-mid cursor-pointer hover:text-brand transition-colors"
-                >
-                  <div className="flex items-center gap-1">
-                    {column.label}
-                    {sortConfig?.key === column.key && (
-                      sortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                    )}
-                  </div>
-                </th>
-              ))}
-              <th className="py-3 px-4 border-b-2 border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-mid">
-                Created By
-              </th>
-              <th className="py-3 px-4 border-b-2 border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-mid">
-                Items
-              </th>
-              <th className="py-3 px-4 border-b-2 border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-mid">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data?.items.map((job) => (
-              <tr
-                key={job.id}
-                className="hover:bg-brand-light transition-colors border-b border-line-light"
-              >
-                <td className="py-3.5 px-4 font-mono text-sm text-brand">
-                  {shortId(job.id)}
-                </td>
-                <td className="py-3.5 px-4">
-                  <span className="px-2.5 py-1 bg-brand-light text-brand text-xs font-semibold rounded-full">
-                    {getTypeLabel(job.jobType)}
-                  </span>
-                </td>
-                <td className="py-3.5 px-4 text-sm text-ink-mid">{formatDateTime(job.createdAt)}</td>
-                <td className="py-3.5 px-4">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(job.status).tone]}`}>
-                    {job.status}
-                  </span>
-                </td>
-                <td className="py-3.5 px-4 text-sm text-ink">
-                  <div>{job.createdBy?.name || 'System'}</div>
-                  {job.status === 'PENDING' && (
-                    <div className="text-xs text-warning mt-0.5 font-medium">Awaiting Approval</div>
-                  )}
-                </td>
-                <td className="py-3.5 px-4 text-sm text-ink-mid">
-                  {job.processedCount}/{job.totalItems}
-                </td>
-                <td className="py-3.5 px-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={async () => {
-                        setSelectedJob(job);
-                        try {
-                          const fullJob = await jobService.getJob(job.id);
-                          setSelectedJob(fullJob);
-                        } catch (err) {
-                          console.error('Failed to fetch job details:', err);
-                        }
-                      }}
-                      className="p-1.5 text-ink-light hover:text-brand transition-colors"
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    {job.status === 'FAILED' && (
-                      <button
-                        onClick={() => handleRetryJob(job.id)}
-                        disabled={isRetrying}
-                        className="p-1.5 text-ink-light hover:text-success transition-colors disabled:opacity-50"
-                        title="Retry"
-                      >
-                        <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
-                      </button>
-                    )}
-                    {job.status === 'RUNNING' && (
-                      <button
-                        onClick={() => setJobToCancel(job.id)}
-                        disabled={isRetrying || isDeleting}
-                        className="p-1.5 text-ink-light hover:text-danger transition-colors disabled:opacity-50"
-                        title="Clear Stuck Job"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                    {(job.status === 'PENDING' || job.status === 'FAILED') && (
-                      <button
-                        onClick={() => setJobToDelete(job.id)}
-                        disabled={isRetrying || isDeleting}
-                        className="p-1.5 text-ink-light hover:text-danger transition-colors disabled:opacity-50"
-                        title="Delete Job"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {(!data || data.items.length === 0) && !isLoading && (
-          <EmptyState
-            icon={Search}
-            title="No jobs found"
-            message="Nothing matches your current filters. Try widening the date range or clearing the status filter."
-          />
-        )}
-      </div>
-
-      {/* Pagination */}
-      {data && data.totalPages && data.totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
-          <p className="text-sm text-ink-mid">
-            Page {data.page} of {data.totalPages}
-          </p>
-          <div className="flex gap-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(p => p - 1)}
-              className="px-4 py-2 border rounded-md text-sm disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              disabled={page === (data.totalPages ?? 0)}
-              onClick={() => setPage(p => p + 1)}
-              className="px-4 py-2 border rounded-md text-sm disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <DataTable
+        columns={jobColumns}
+        rows={data?.items ?? []}
+        rowKey={(job) => job.id}
+        isLoading={isLoading}
+        emptyIcon={Search}
+        emptyTitle="No jobs found"
+        emptyMessage="Nothing matches your current filters. Try widening the date range or clearing the status filter."
+        sortBy={sortConfig.key}
+        sortOrder={sortConfig.direction}
+        onSort={handleSort}
+        pagination={{
+          mode: 'server',
+          page,
+          limit: PAGE_SIZE,
+          total: data?.total ?? 0,
+          onPageChange: setPage,
+        }}
+      />
 
       {/* Job Detail Modal */}
       {selectedJob && (
@@ -572,59 +604,15 @@ export function JobHistory() {
               )}
 
               {activeTab === 'items' && (
-                <div>
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-page">
-                        <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Index</th>
-                        <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Reference</th>
-                        <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Vendor</th>
-                        <th className="py-2 px-3 text-right text-xs font-semibold text-ink-mid">Expected</th>
-                        <th className="py-2 px-3 text-right text-xs font-semibold text-ink-mid">Actual</th>
-                        <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Status</th>
-                        <th className="py-2 px-3 text-left text-xs font-semibold text-ink-mid">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedJob.jobItems?.map((item, i) => (
-                        <tr key={item.id} className="border-b border-line-light">
-                          <td className="py-2 px-3 text-sm text-ink-mid">{i + 1}</td>
-                          <td className="py-2 px-3 font-mono text-sm text-brand">
-                            {item.invoiceNumber || item.xeroInvoiceId || item.xeroOverpaymentId || '—'}
-                          </td>
-                          <td className="py-2 px-3 text-sm text-ink">{item.contactName || '—'}</td>
-                          <td className="py-2 px-3 text-sm text-right font-mono">
-                            {formatCurrency(item.expectedAmount)}
-                          </td>
-                          <td className="py-2 px-3 text-sm text-right font-mono text-ink">
-                            {formatCurrency(item.allocatedAmount)}
-                          </td>
-                          <td className="py-2 px-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${toneBadgeClasses[jobItemStatus(item.status).tone]}`}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 min-w-[200px]">
-                            {item.failureReason ? (
-                              <p className="text-[10px] text-danger font-medium leading-tight break-words">
-                                {item.failureReason}
-                              </p>
-                            ) : (
-                              <span className="text-[10px] text-ink-light italic">No issues</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {(!selectedJob.jobItems || selectedJob.jobItems.length === 0) && (
-                        <tr>
-                          <td colSpan={6} className="py-8 text-center text-ink-light text-sm italic">
-                            No items loaded for this job.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  columns={itemColumns}
+                  rows={selectedJob.jobItems ?? []}
+                  rowKey={(item) => item.id}
+                  emptyIcon={ListChecks}
+                  emptyTitle="No items loaded"
+                  emptyMessage="This job has no line items."
+                  className="border-0 rounded-none"
+                />
               )}
 
               {activeTab === 'audit' && (

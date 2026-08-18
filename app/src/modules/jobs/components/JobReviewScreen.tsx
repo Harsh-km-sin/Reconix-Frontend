@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   AlertTriangle, 
@@ -13,12 +13,14 @@ import {
 import toast from 'react-hot-toast';
 import { jobService } from '@/modules/jobs/services/jobService';
 import { validationService } from '@/modules/jobs/services/validationService';
-import type { ValidationReportItem, JobReviewScreenProps } from '@/modules/jobs/types';
+import type { ValidationReportItem, JobReviewScreenProps, JobReviewRow } from '@/modules/jobs/types';
+import { DataTable, type Column } from '@/ui_library/components/DataTable';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { api } from '@/lib/api';
 import { JOB_TYPE } from '@/types';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
-import { formatCurrency } from '@/lib/format';
+import { validationStatus } from '@/lib/status';
+import { formatCurrency, EM_DASH } from '@/lib/format';
 
 export function JobReviewScreen({
     jobType,
@@ -165,6 +167,172 @@ export function JobReviewScreen({
         }
     };
 
+    // Rows carry their pre-grouping position, because itemConfigs and
+    // validationReports are both keyed by it.
+    const reviewRows = useMemo<JobReviewRow[]>(
+        () =>
+            jobData.map((row, i) => ({
+                ...row,
+                vendor: row['Vendor Name'] || 'Other / Unknown',
+                originalIndex: i,
+            })),
+        [jobData]
+    );
+
+    const reviewColumns = useMemo<Column<JobReviewRow>[]>(
+        () => [
+            {
+                key: 'index',
+                header: '#',
+                className: 'w-12 text-xs',
+                render: (row) => <span className="text-ink-light">{row.originalIndex + 1}</span>,
+            },
+            {
+                key: 'reference',
+                header: 'Reference',
+                className: 'font-mono whitespace-nowrap text-xs',
+                render: (row) => (
+                    <span className="text-brand">
+                        {row['Invoice Number'] || row['Reference'] || EM_DASH}
+                    </span>
+                ),
+            },
+            {
+                key: 'mode',
+                header: 'Mode',
+                render: (row) =>
+                    jobType === JOB_TYPE.INVOICE_REVERSAL ? (
+                        <select
+                            value={itemConfigs[row.originalIndex]?.type || 'FULL'}
+                            onChange={(e) =>
+                                setItemConfigs((prev) => ({
+                                    ...prev,
+                                    [row.originalIndex]: {
+                                        ...prev[row.originalIndex],
+                                        type: e.target.value as 'FULL' | 'PARTIAL',
+                                        amount:
+                                            e.target.value === 'FULL'
+                                                ? Number(row.Amount)
+                                                : prev[row.originalIndex].amount,
+                                    },
+                                }))
+                            }
+                            className="bg-line-light border border-line rounded px-2 py-1 text-[10px] focus:outline-none focus:border-brand"
+                        >
+                            <option value="FULL">Full</option>
+                            <option value="PARTIAL">Partial</option>
+                        </select>
+                    ) : (
+                        <span className="text-[10px] text-ink-light">Default</span>
+                    ),
+            },
+            {
+                key: 'amount',
+                header:
+                    amountMode === 'BILL_TOTAL'
+                        ? 'Amount to Reverse (Incl. Tax)'
+                        : 'Reversal Amount (Excl. Tax)',
+                align: 'right',
+                render: (row) =>
+                    itemConfigs[row.originalIndex]?.type === 'PARTIAL' ? (
+                        <div className="flex items-center justify-end gap-1">
+                            <span
+                                className="text-[10px] text-ink-mid"
+                                title={amountMode === 'BILL_TOTAL' ? 'Total including tax' : 'Tax exclusive'}
+                            >
+                                $
+                            </span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={itemConfigs[row.originalIndex]?.amount}
+                                onChange={(e) =>
+                                    setItemConfigs((prev) => ({
+                                        ...prev,
+                                        [row.originalIndex]: {
+                                            ...prev[row.originalIndex],
+                                            amount: Number(e.target.value),
+                                        },
+                                    }))
+                                }
+                                className="w-20 text-right bg-surface border border-brand rounded px-1 py-0.5 text-xs font-mono"
+                            />
+                        </div>
+                    ) : (
+                        <span className="font-mono text-ink text-xs">
+                            {formatCurrency(Number(row.Amount) || 0)}
+                        </span>
+                    ),
+            },
+            {
+                key: 'validation',
+                header: 'Validation Status',
+                render: (row) => {
+                    const report = validationReports[`item-${row.originalIndex}`];
+                    if (isValidating) {
+                        return (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="w-3 h-3 text-brand animate-spin" />
+                                <span className="text-[10px] text-ink-mid">Checking...</span>
+                            </div>
+                        );
+                    }
+                    const meta = validationStatus(report?.status ?? 'PENDING');
+                    const Icon =
+                        meta.tone === 'success'
+                            ? CheckCircle2
+                            : meta.tone === 'danger'
+                              ? XCircle
+                              : AlertCircle;
+                    const label = !report
+                        ? 'Not checked'
+                        : report.status === 'VALID'
+                          ? 'Verified'
+                          : meta.label;
+                    return (
+                        <div
+                            className={`flex items-center gap-1.5 font-medium text-[10px] text-${meta.tone === 'neutral' ? 'neutral' : meta.tone}`}
+                        >
+                            <Icon className="w-3.5 h-3.5" />
+                            {label}
+                        </div>
+                    );
+                },
+            },
+            {
+                key: 'issues',
+                header: 'Issues/Notes',
+                className: 'max-w-[200px]',
+                render: (row) => {
+                    const report = validationReports[`item-${row.originalIndex}`];
+                    if (!report) {
+                        return (
+                            <span className="text-[9px] text-neutral italic">Validation did not run</span>
+                        );
+                    }
+                    return (
+                        <>
+                            {report.errors.map((err: string, idx: number) => (
+                                <p key={idx} className="text-[9px] text-danger font-bold leading-tight mb-0.5">
+                                    &bull; {err}
+                                </p>
+                            ))}
+                            {report.warnings.map((warn: string, idx: number) => (
+                                <p key={idx} className="text-[9px] text-warning font-bold leading-tight mb-0.5">
+                                    &bull; {warn}
+                                </p>
+                            ))}
+                            {report.status === 'VALID' && (
+                                <span className="text-[9px] text-ink-light italic">No issues detected</span>
+                            )}
+                        </>
+                    );
+                },
+            },
+        ],
+        [jobType, itemConfigs, amountMode, validationReports, isValidating]
+    );
+
     return (
         <div className="bg-surface border border-line rounded-xl overflow-hidden animate-slide-up shadow-lg">
             <div className="p-6 border-b border-line flex items-center justify-between bg-page">
@@ -286,139 +454,33 @@ export function JobReviewScreen({
 
                 {/* Right Col: Data Review */}
                 <div className="lg:col-span-2">
-                    <div className="border border-line rounded-xl overflow-hidden shadow-sm">
-                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin">
-                            <table className="w-full text-sm">
-                                <thead className="bg-page sticky top-0 shadow-sm border-b border-line z-10">
-                                    <tr>
-                                        <th className="py-3 px-4 text-left font-semibold text-ink-mid w-12">#</th>
-                                        <th className="py-3 px-4 text-left font-semibold text-ink-mid">Reference</th>
-                                        <th className="py-3 px-4 text-left font-semibold text-ink-mid">Mode</th>
-                                        <th className="py-3 px-4 text-right font-semibold text-ink-mid">
-                                            {amountMode === 'BILL_TOTAL' ? 'Amount to Reverse (Incl. Tax)' : 'Reversal Amount (Excl. Tax)'}
-                                        </th>
-                                        <th className="py-3 px-4 text-left font-semibold text-ink-mid">Validation Status</th>
-                                        <th className="py-3 px-4 text-left font-semibold text-ink-mid">Issues/Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-line-light">
-                                    {Object.entries(
-                                        jobData.reduce((acc: Record<string, any[]>, row, i) => {
-                                            const vendor = row['Vendor Name'] || 'Other / Unknown';
-                                            if (!acc[vendor]) acc[vendor] = [];
-                                            acc[vendor].push({ ...row, originalIndex: i });
-                                            return acc;
-                                        }, {})
-                                    ).map(([vendor, vendorItems]) => (
-                                        <React.Fragment key={vendor}>
-                                            <tr className="bg-[#F8F9FA] border-y border-line">
-                                                <td colSpan={5} className="py-2.5 px-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-brand" />
-                                                        <span className="font-bold text-ink uppercase text-[11px] tracking-widest">{vendor}</span>
-                                                        <span className="text-[10px] text-ink-light font-medium ml-2">({vendorItems.length} items)</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {vendorItems.map((item) => {
-                                                const report = validationReports[`item-${item.originalIndex}`];
-                                                return (
-                                                    <tr key={item.originalIndex} className={`hover:bg-page transition-colors ${report?.status === 'INVALID' ? 'bg-danger-light/30' : ''}`}>
-                                                        <td className="py-3 px-4 text-ink-light text-xs">{item.originalIndex + 1}</td>
-                                                        <td className="py-3 px-4 font-mono text-brand whitespace-nowrap text-xs">
-                                                            {item['Invoice Number'] || item['Reference'] || '—'}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {jobType === JOB_TYPE.INVOICE_REVERSAL ? (
-                                                                <select
-                                                                    value={itemConfigs[item.originalIndex]?.type || 'FULL'}
-                                                                    onChange={(e) => setItemConfigs(prev => ({
-                                                                        ...prev,
-                                                                        [item.originalIndex]: { 
-                                                                            ...prev[item.originalIndex], 
-                                                                            type: e.target.value as 'FULL' | 'PARTIAL',
-                                                                            amount: e.target.value === 'FULL' ? Number(item.Amount) : prev[item.originalIndex].amount
-                                                                        }
-                                                                    }))}
-                                                                    className="bg-line-light border border-line rounded px-2 py-1 text-[10px] focus:outline-none focus:border-brand"
-                                                                >
-                                                                    <option value="FULL">Full</option>
-                                                                    <option value="PARTIAL">Partial</option>
-                                                                </select>
-                                                            ) : (
-                                                                <span className="text-[10px] text-ink-light">Default</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="py-3 px-4 text-right">
-                                                            {itemConfigs[item.originalIndex]?.type === 'PARTIAL' ? (
-                                                                <div className="flex items-center justify-end gap-1">
-                                                                    <span className="text-[10px] text-ink-mid" title={amountMode === 'BILL_TOTAL' ? 'Total including tax' : 'Tax exclusive'}>$</span>
-                                                                    <input
-                                                                        type="number"
-                                                                        step="0.01"
-                                                                        value={itemConfigs[item.originalIndex]?.amount}
-                                                                        onChange={(e) => setItemConfigs(prev => ({
-                                                                            ...prev,
-                                                                            [item.originalIndex]: { ...prev[item.originalIndex], amount: Number(e.target.value) }
-                                                                        }))}
-                                                                        className="w-20 text-right bg-surface border border-brand rounded px-1 py-0.5 text-xs font-mono"
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <span className="font-mono text-ink text-xs">
-                                                                    {formatCurrency(Number(item.Amount) || 0)}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {isValidating ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Loader2 className="w-3 h-3 text-brand animate-spin" />
-                                                                    <span className="text-[10px] text-ink-mid">Checking...</span>
-                                                                </div>
-                                                            ) : !report ? (
-                                                                <div className="flex items-center gap-1.5 text-neutral font-medium text-[10px]">
-                                                                    <AlertCircle className="w-3.5 h-3.5" />
-                                                                    Not checked
-                                                                </div>
-                                                            ) : report.status === 'VALID' ? (
-                                                                <div className="flex items-center gap-1.5 text-success font-medium text-[10px]">
-                                                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                                                    Verified
-                                                                </div>
-                                                            ) : report.status === 'WARNING' ? (
-                                                                <div className="flex items-center gap-1.5 text-warning font-medium text-[10px]">
-                                                                    <AlertCircle className="w-3.5 h-3.5" />
-                                                                    Warning
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-1.5 text-danger font-medium text-[10px]">
-                                                                    <XCircle className="w-3.5 h-3.5" />
-                                                                    Invalid
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td className="py-3 px-4 max-w-[200px]">
-                                                            {!report && (
-                                                                <span className="text-[9px] text-neutral italic">Validation did not run</span>
-                                                            )}
-                                                            {report?.errors.map((err: string, idx: number) => (
-                                                                <p key={idx} className="text-[9px] text-danger font-bold leading-tight mb-0.5">• {err}</p>
-                                                            ))}
-                                                            {report?.warnings.map((warn: string, idx: number) => (
-                                                                <p key={idx} className="text-[9px] text-warning font-bold leading-tight mb-0.5">• {warn}</p>
-                                                            ))}
-                                                            {report?.status === 'VALID' && <span className="text-[9px] text-ink-light italic">No issues detected</span>}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </React.Fragment>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <DataTable
+                        columns={reviewColumns}
+                        rows={reviewRows}
+                        rowKey={(row) => String(row.originalIndex)}
+                        groupBy={(row) => row.vendor}
+                        renderGroupHeader={(vendor, rows) => (
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-brand" />
+                                <span className="font-bold text-ink uppercase text-[11px] tracking-widest">
+                                    {vendor}
+                                </span>
+                                <span className="text-[10px] text-ink-light font-medium ml-2">
+                                    ({rows.length} items)
+                                </span>
+                            </div>
+                        )}
+                        rowClassName={(row) =>
+                            validationReports[`item-${row.originalIndex}`]?.status === 'INVALID'
+                                ? 'bg-danger-light/30'
+                                : ''
+                        }
+                        stickyHeader
+                        bodyClassName="max-h-[600px] overflow-y-auto scrollbar-thin"
+                        emptyTitle="Nothing to review"
+                        emptyMessage="This job has no line items."
+                        className="rounded-xl shadow-sm"
+                    />
                 </div>
             </div>
 
