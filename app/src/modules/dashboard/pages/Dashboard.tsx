@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
-import { RefreshCw, CreditCard, PlusCircle, ClipboardList, Building2, Settings, TrendingUp, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, CreditCard, PlusCircle, ClipboardList, Building2, Settings, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import { jobService } from '@/modules/jobs/services/jobService';
 import { xeroService } from '@/modules/xero/services/xeroService';
 import type { Job } from '@/types';
@@ -12,6 +12,8 @@ import { formatDateTime, shortId } from '@/lib/format';
 import { jobStatus, toneBadgeClasses } from '@/lib/status';
 import { PageHeader } from '@/ui_library/components/PageHeader';
 import { DataTable, type Column } from '@/ui_library/components/DataTable';
+import { StatCard } from '@/ui_library/components/StatCard';
+import { ActionCard } from '@/ui_library/components/ActionCard';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -195,81 +197,32 @@ export function Dashboard() {
         className="mb-8"
       />
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 relative">
-        {quickStats.map((stat, index) => (
-          <div
-            key={index}
-            className="bg-surface border border-line rounded-lg p-5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-250 relative overflow-hidden"
-          >
-            <div className={`absolute top-0 left-0 w-1 rounded-l-lg h-full ${stat.trend === 'up' ? 'bg-success' :
-              stat.trend === 'down' ? 'bg-danger' :
-                'bg-transparent'
-              }`} />
-
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-ink-light mb-1">{stat.label}</p>
-                <div className="flex items-center gap-2">
-                  {isLoading && <Loader2 className="w-4 h-4 text-line animate-spin" />}
-                  <p className="text-2xl font-bold text-ink">{stat.value}</p>
-                </div>
-                <p className="text-xs text-ink-light mt-1">{stat.subtext}</p>
-              </div>
-              <div className={`p-2 rounded-lg ${stat.trend === 'up' ? 'bg-success-light' :
-                stat.trend === 'down' ? 'bg-danger-light' :
-                  'bg-brand-light'
-                }`}>
-                <stat.icon className={`w-5 h-5 ${stat.trend === 'up' ? 'text-success' :
-                  stat.trend === 'down' ? 'text-danger' :
-                    'text-brand'
-                  }`} />
-              </div>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {quickStats.map((stat) => (
+          <StatCard
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            subtext={stat.subtext}
+            icon={stat.icon}
+            trend={stat.trend}
+            isLoading={isLoading}
+          />
         ))}
       </div>
 
-      {/* Module Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {modules.map((module, index) => (
-          <button
+          <ActionCard
             key={module.id}
+            title={module.title}
+            description={module.description}
+            icon={module.icon}
+            tone={module.color}
+            badge={module.badge}
+            index={index}
             onClick={() => navigate(module.path)}
-            className="group bg-surface border border-line rounded-lg p-6 text-left transition-all duration-250 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] hover:border-brand hover:-translate-y-0.5 animate-slide-up"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div
-                className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-250 group-hover:scale-110"
-                style={{ backgroundColor: `rgb(var(--${module.color}) / 0.08)` }}
-              >
-                <module.icon className="w-6 h-6" style={{ color: `rgb(var(--${module.color}))` }} />
-              </div>
-              {module.badge && (
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${module.badge.type === 'error' ? 'bg-danger-light text-danger' :
-                  module.badge.type === 'warning' ? 'bg-warning-light text-warning' :
-                    'bg-brand-light text-brand'
-                  }`}>
-                  {module.badge.count} pending
-                </span>
-              )}
-            </div>
-
-            <h3 className="text-lg font-semibold text-ink mb-2 group-hover:text-brand transition-colors">
-              {module.title}
-            </h3>
-            <p className="text-sm text-ink-mid mb-4 line-clamp-2">
-              {module.description}
-            </p>
-
-            <div className="flex items-center text-sm font-medium text-brand opacity-0 group-hover:opacity-100 transition-opacity duration-250">
-              Go to module
-              <svg className="w-4 h-4 ml-1 transition-transform duration-250 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </button>
+          />
         ))}
       </div>
 

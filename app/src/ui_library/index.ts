@@ -39,6 +39,32 @@ export type { PageHeaderProps } from './components/PageHeader';
 export { Tabs } from './components/Tabs';
 export type { TabsProps, TabItem, TabsOrientation } from './components/Tabs';
 
+// ── inputs ──────────────────────────────────────────────────────────────────
+export { SearchInput } from './components/SearchInput';
+export type { SearchInputProps } from './components/SearchInput';
+export { Select } from './components/Select';
+export type { SelectProps, SelectOption } from './components/Select';
+export { DatePicker } from './components/DatePicker';
+export type { DatePickerProps } from './components/DatePicker';
+export { DateRangePicker } from './components/DateRangePicker';
+export type { DateRangePickerProps, DateRange } from './components/DateRangePicker';
+export { FilterBar } from './components/FilterBar';
+export type { FilterBarProps } from './components/FilterBar';
+export { FormField } from './components/FormField';
+export type { FormFieldProps } from './components/FormField';
+
+// ── display ─────────────────────────────────────────────────────────────────
+export { StatCard } from './components/StatCard';
+export type { StatCardProps, Trend } from './components/StatCard';
+export { ActionCard } from './components/ActionCard';
+export type { ActionCardProps, ActionCardBadge } from './components/ActionCard';
+export { StatusBadge } from './components/StatusBadge';
+export type { StatusBadgeProps, StatusBadgeVariant, StatusBadgeSize } from './components/StatusBadge';
+export { Money } from './components/Money';
+export type { MoneyProps } from './components/Money';
+export { DetailList } from './components/DetailList';
+export type { DetailListProps, DetailItem, DetailListColumns } from './components/DetailList';
+
 // ── hooks ───────────────────────────────────────────────────────────────────
 export { useIsMobile } from './hooks/useMobile';
 export { useDebounce } from './hooks/useDebounce';
