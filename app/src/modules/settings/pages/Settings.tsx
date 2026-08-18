@@ -15,8 +15,7 @@ import {
 import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { api } from '@/lib/api';
 import { useToast } from '@/store/useToast';
-
-type SettingsTab = 'profile' | 'security' | 'notifications' | 'company' | 'accounting' | 'users' | 'batch';
+import type { SettingsTab } from '@/modules/settings/types';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');

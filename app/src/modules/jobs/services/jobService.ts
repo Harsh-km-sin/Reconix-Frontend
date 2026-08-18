@@ -1,24 +1,7 @@
 import { api } from '@/lib/api';
-import type { Job, JobType, JobStatus } from '@/types';
-
-export interface ListJobsOptions {
-    page?: number;
-    limit?: number;
-    type?: JobType | 'ALL';
-    status?: JobStatus | 'ALL';
-    dateFrom?: string;
-    dateTo?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-}
-
-export interface ListResponse<T> {
-    items: T[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages?: number;
-}
+import type { Job, JobType } from '@/types';
+import type { Paginated } from '@/lib/types/api';
+import type { ListJobsOptions } from '@/modules/jobs/types';
 
 export const jobService = {
     listJobs: async (options: ListJobsOptions = {}) => {
@@ -34,7 +17,7 @@ export const jobService = {
 
         const queryString = params.toString();
         const path = queryString ? `jobs?${queryString}` : 'jobs';
-        return api.get<ListResponse<Job>>(path);
+        return api.get<Paginated<Job>>(path);
     },
 
     getJob: async (jobId: string) => {

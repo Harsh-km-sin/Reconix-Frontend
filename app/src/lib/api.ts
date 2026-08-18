@@ -3,21 +3,13 @@
  * Uses VITE_API_URL and sends JWT in Authorization header when available.
  */
 
+import type { ApiSuccess, ApiError } from "@/lib/types/api";
+
+export type { ApiSuccess, ApiError };
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 const TOKEN_KEY = "reconix_token";
 const TENANT_KEY = "reconix_active_tenant";
-
-/** Backend success envelope */
-export interface ApiSuccess<T> {
-  success: true;
-  data: T;
-}
-
-/** Backend error envelope */
-export interface ApiError {
-  success: false;
-  error: { code: string; message: string };
-}
 
 /** Thrown on non-2xx responses; message is user-facing */
 export class ApiClientError extends Error {

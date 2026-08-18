@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { jobService } from '@/modules/jobs/services/jobService';
-import { validationService, type ValidationReportItem } from '@/modules/jobs/services/validationService';
+import { validationService } from '@/modules/jobs/services/validationService';
+import type { ValidationReportItem, JobReviewScreenProps } from '@/modules/jobs/types';
 import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { api } from '@/lib/api';
 import { JOB_TYPE } from '@/types';
@@ -22,11 +23,7 @@ export function JobReviewScreen({
     jobType,
     jobData,
     onBack
-}: {
-    jobType: string;
-    jobData: any[];
-    onBack: () => void;
-}) {
+}: JobReviewScreenProps) {
     const navigate = useNavigate();
     const { companyId: authCompanyId, permissions } = useAuth();
     const canApprove = hasPermission(permissions, PERMISSIONS.JOBS_APPROVE);

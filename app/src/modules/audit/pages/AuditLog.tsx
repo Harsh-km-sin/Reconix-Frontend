@@ -9,7 +9,8 @@ import {
   FileJson,
   Loader2
 } from 'lucide-react';
-import { auditService, type AuditLog } from '@/modules/audit/services/auditService';
+import { auditService } from '@/modules/audit/services/auditService';
+import type { AuditLog } from '@/modules/audit/types';
 import toast from 'react-hot-toast';
 
 export function AuditLogPage() {
@@ -33,7 +34,7 @@ export function AuditLogPage() {
                 action: actionFilter || undefined,
                 resourceType: resourceFilter || undefined
             });
-            setLogs(response.data);
+            setLogs(response.items);
             setTotal(response.total);
         } catch (error) {
             console.error('Failed to fetch audit logs:', error);

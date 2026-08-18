@@ -1,14 +1,9 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { X, Loader2, RefreshCw, CheckCircle2, XCircle, Clock, History } from 'lucide-react';
-import { xeroService, type SyncLogItem } from '@/modules/xero/services/xeroService';
+import { xeroService } from '@/modules/xero/services/xeroService';
+import type { SyncLogItem, SyncLogsModalProps } from '@/modules/xero/types';
 import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/errors';
-
-interface SyncLogsModalProps {
-  tenantId: string;
-  tenantName: string;
-  onClose: () => void;
-}
 
 /** Elapsed time between start and completion, e.g. "2.4s". */
 function formatDuration(startedAt: string, completedAt: string | null): string {

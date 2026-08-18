@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import type { LoginCredentials } from '@/types';
+import type { LoginProps } from '@/modules/auth/types';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-
-interface LoginProps {
-  onLogin: (credentials: LoginCredentials) => Promise<boolean>;
-  onNavigateToRegister: () => void;
-  /** Backend error message to show (e.g. "Please set your password using the invite link") */
-  serverError?: string | null;
-}
 
 export function Login({ onLogin, onNavigateToRegister, serverError }: LoginProps) {
   const [credentials, setCredentials] = useState<LoginCredentials>({

@@ -1,8 +1,5 @@
 import { Link } from "react-router-dom";
-
-interface RegisterProps {
-  onNavigateToLogin: () => void;
-}
+import type { RegisterProps } from '@/modules/auth/types';
 
 /**
  * Repurposed: no self-registration. Users are invited by an admin and set their password via email link.

@@ -1,19 +1,5 @@
 import { api } from '@/lib/api';
-
-export interface PermissionDef {
-  id: string;
-  key: string;
-  category: string | null;
-  description: string | null;
-}
-
-export interface RoleWithPermissions {
-  id: string;
-  name: string;
-  description: string | null;
-  isSystem: boolean;
-  permissionKeys: string[];
-}
+import type { PermissionDef, RoleWithPermissions } from '@/modules/rbac/types';
 
 /** RBAC management API (guarded server-side by the roles:manage permission). */
 export const roleService = {

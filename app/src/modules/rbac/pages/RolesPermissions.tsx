@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Shield, Plus, Trash2, Loader2, Lock, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { roleService, type PermissionDef, type RoleWithPermissions } from '@/modules/rbac/services/roleService';
-
-type Mode = { kind: 'view'; roleId: string } | { kind: 'create' } | { kind: 'empty' };
+import { roleService } from '@/modules/rbac/services/roleService';
+import type { PermissionDef, RoleWithPermissions, RolesPageMode } from '@/modules/rbac/types';
 
 export function RolesPermissions() {
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [catalog, setCatalog] = useState<PermissionDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [mode, setMode] = useState<Mode>({ kind: 'empty' });
+  const [mode, setMode] = useState<RolesPageMode>({ kind: 'empty' });
 
   // Editor draft
   const [name, setName] = useState('');

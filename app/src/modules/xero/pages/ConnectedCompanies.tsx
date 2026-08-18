@@ -26,28 +26,8 @@ import { AlertModal } from '@/ui_library/primitives/alert-modal';
 import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { SyncLogsModal } from '@/modules/xero/components/SyncLogsModal';
 import { getErrorMessage } from '@/lib/errors';
+import type { CompanyItem } from '@/modules/xero/types';
 
-
-type CompanyItem = {
-  companyId: string;
-  tenantId: string;
-  tenantName: string;
-  tenantType: string;
-  connectedAt: string;
-  lastSyncedAt: string | null;
-  isActive: boolean;
-  invoiceCount: number;
-  contactCount: number;
-  overpaymentCount: number;
-  lastSync?: {
-    syncType: string;
-    status: string;
-    recordsFetched: number | null;
-    startedAt: string;
-    completedAt: string | null;
-    errorMessage: string | null;
-  } | null;
-};
 
 export function ConnectedCompanies() {
   const [companies, setCompanies] = useState<CompanyItem[]>([]);

@@ -7,24 +7,7 @@ import { xeroService } from '@/modules/xero/services/xeroService';
 import type { Job, JobStatus } from '@/types';
 import { JOB_TYPE } from '@/types';
 import { jobBuilderPath } from '@/modules/jobs/navigation';
-
-interface ModuleCard {
-  id: string;
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  path: string;
-  badge?: { count: number; type: 'info' | 'warning' | 'error' };
-  color: string;
-}
-
-interface QuickStat {
-  label: string;
-  value: string | number;
-  subtext: string;
-  icon: React.ElementType;
-  trend?: 'up' | 'down' | 'neutral';
-}
+import type { ModuleCard, QuickStat } from '@/modules/dashboard/types';
 
 export function Dashboard() {
   const navigate = useNavigate();

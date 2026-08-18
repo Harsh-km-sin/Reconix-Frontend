@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Job, JobType, JobStatus } from '@/types';
 import { JOB_TYPE, JOB_TYPE_LABELS } from '@/types';
 import { jobService } from '@/modules/jobs/services/jobService';
-import type { ListResponse } from '@/modules/jobs/services/jobService';
+import type { Paginated } from '@/lib/types/api';
 import {
   Calendar,
   Search,
@@ -26,7 +26,7 @@ export function JobHistory() {
   const { permissions } = useAuth();
   const canApprove = hasPermission(permissions, PERMISSIONS.JOBS_APPROVE);
   const [isApproving, setIsApproving] = useState(false);
-  const [data, setData] = useState<ListResponse<Job> | null>(null);
+  const [data, setData] = useState<Paginated<Job> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     dateRange: '7d',

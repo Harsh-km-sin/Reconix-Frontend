@@ -3,30 +3,14 @@ import { ArrowRight, Check, MapPin, Save, List } from 'lucide-react';
 import { api } from '@/lib/api';
 import { JOB_TYPE } from '@/types';
 import toast from 'react-hot-toast';
-
-interface ColumnMapping {
-    required: string[];
-    optional: string[];
-}
-
-interface FileData {
-    fileName: string;
-    selectedSheet: string | null;
-    headers: string[];
-    rawRows: any[];
-}
+import type { ColumnMapping, ExcelColumnMapperProps } from '@/modules/jobs/types';
 
 export function ExcelColumnMapper({
     fileData,
     jobType,
     onMappingComplete,
     onBack
-}: {
-    fileData: FileData;
-    jobType: string;
-    onMappingComplete: (mappedData: any[]) => void;
-    onBack: () => void;
-}) {
+}: ExcelColumnMapperProps) {
     const getRequiredFields = (): ColumnMapping => {
         switch (jobType) {
             case JOB_TYPE.INVOICE_REVERSAL:

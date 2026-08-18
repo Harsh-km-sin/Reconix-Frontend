@@ -1,41 +1,6 @@
 import { api } from '@/lib/api';
-
-export interface AuditLog {
-    id: string;
-    companyId: string;
-    userId: string | null;
-    action: string;
-    resourceType: string | null;
-    resourceId: string | null;
-    beforeState: any;
-    afterState: any;
-    xeroRequest: any;
-    xeroResponse: any;
-    ipAddress: string | null;
-    userAgent: string | null;
-    createdAt: string;
-    user?: {
-        id: string;
-        name: string;
-        email: string;
-    };
-}
-
-export interface ListAuditLogsOptions {
-    userId?: string;
-    action?: string;
-    resourceId?: string;
-    resourceType?: string;
-    page?: number;
-    limit?: number;
-}
-
-export interface ListResponse<T> {
-    data: T[];
-    total: number;
-    page: number;
-    limit: number;
-}
+import type { Paginated } from '@/lib/types/api';
+import type { AuditLog, ListAuditLogsOptions } from '@/modules/audit/types';
 
 export const auditService = {
     listLogs: async (options: ListAuditLogsOptions = {}) => {
@@ -49,6 +14,6 @@ export const auditService = {
 
         const queryString = params.toString();
         const path = queryString ? `audit?${queryString}` : 'audit';
-        return api.get<ListResponse<AuditLog>>(path);
+        return api.get<Paginated<AuditLog>>(path);
     }
 };

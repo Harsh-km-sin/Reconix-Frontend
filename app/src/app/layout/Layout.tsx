@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import type { User, CompanyOption } from '@/types';
 import { navItems } from '@/app/navigation';
 import { hasModuleAccess } from '@/lib/permissions';
 import {
@@ -21,20 +20,7 @@ import {
   Activity,
   Shield,
 } from 'lucide-react';
-
-interface LayoutProps {
-  children: React.ReactNode;
-  user: User | null;
-  onLogout: () => void;
-  /** JWT permissions (module names + "module:write"); used to filter nav items */
-  permissions?: readonly string[];
-  /** Companies from auth (for company switcher); admin sees all */
-  companies?: CompanyOption[];
-  /** Current company id from auth */
-  companyId?: string | null;
-  /** Called when user clicks a different company; receives target companyId */
-  onSwitchCompany?: (companyId: string) => Promise<boolean>;
-}
+import type { LayoutProps } from '@/app/layout/types';
 
 // Icon mapping
 const iconMap: Record<string, React.ElementType> = {

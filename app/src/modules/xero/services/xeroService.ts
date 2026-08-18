@@ -1,24 +1,7 @@
 import { api } from '@/lib/api';
-import type { Invoice, Overpayment, InvoiceFilter } from '@/types';
-import type { ListResponse } from '@/modules/jobs/services/jobService';
-
-export interface ListInvoicesOptions extends InvoiceFilter {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-}
-
-/** One recorded sync run (SyncLog). */
-export interface SyncLogItem {
-    id: string;
-    syncType: 'FULL' | 'INCREMENTAL' | 'CONTACTS' | 'INVOICES' | 'OVERPAYMENTS';
-    status: 'RUNNING' | 'COMPLETED' | 'FAILED';
-    recordsFetched: number | null;
-    startedAt: string;
-    completedAt: string | null;
-    errorMessage: string | null;
-}
+import type { Invoice, Overpayment } from '@/types';
+import type { Paginated } from '@/lib/types/api';
+import type { ListInvoicesOptions, SyncLogItem } from '@/modules/xero/types';
 
 export const xeroService = {
     /** Recent sync runs for a Xero tenant (most recent first). */
@@ -42,7 +25,7 @@ export const xeroService = {
 
         const queryString = params.toString();
         const path = queryString ? `xero/invoices?${queryString}` : 'xero/invoices';
-        return api.get<ListResponse<Invoice>>(path);
+        return api.get<Paginated<Invoice>>(path);
     },
 
     getOverpayments: async (options: { page?: number; limit?: number; search?: string; vendorId?: string } = {}) => {
@@ -54,7 +37,7 @@ export const xeroService = {
 
         const queryString = params.toString();
         const path = queryString ? `xero/overpayments?${queryString}` : 'xero/overpayments';
-        return api.get<ListResponse<Overpayment>>(path);
+        return api.get<Paginated<Overpayment>>(path);
     },
 
     getContacts: async (options: { search?: string; isSupplier?: boolean; isCustomer?: boolean } = {}) => {
@@ -63,7 +46,7 @@ export const xeroService = {
         if (options.isSupplier !== undefined) params.append('isSupplier', options.isSupplier.toString());
         if (options.isCustomer !== undefined) params.append('isCustomer', options.isCustomer.toString());
 
-        return api.get<ListResponse<any>>(`xero/contacts?${params.toString()}`);
+        return api.get<Paginated<any>>(`xero/contacts?${params.toString()}`);
     },
 
     getAccounts: async (options: { search?: string; type?: string } = {}) => {
@@ -71,6 +54,6 @@ export const xeroService = {
         if (options.search) params.append('search', options.search);
         if (options.type) params.append('type', options.type);
 
-        return api.get<ListResponse<any>>(`xero/accounts?${params.toString()}`);
+        return api.get<Paginated<any>>(`xero/accounts?${params.toString()}`);
     }
 };
