@@ -4,10 +4,12 @@ import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { RefreshCw, CreditCard, PlusCircle, ClipboardList, Building2, Settings, TrendingUp, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { jobService } from '@/modules/jobs/services/jobService';
 import { xeroService } from '@/modules/xero/services/xeroService';
-import type { Job, JobStatus } from '@/types';
+import type { Job } from '@/types';
 import { JOB_TYPE } from '@/types';
 import { jobBuilderPath } from '@/modules/jobs/navigation';
 import type { ModuleCard, QuickStat } from '@/modules/dashboard/types';
+import { formatDateTime, shortId } from '@/lib/format';
+import { jobStatus, toneBadgeClasses } from '@/lib/status';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -69,28 +71,6 @@ export function Dashboard() {
       mounted = false;
     };
   }, []);
-
-  const getStatusBadge = (status: JobStatus) => {
-    const styles: Record<string, string> = {
-      PENDING: 'bg-warning-light text-warning',
-      RUNNING: 'bg-brand-light text-brand',
-      COMPLETED: 'bg-success-light text-success',
-      FAILED: 'bg-danger-light text-danger',
-      PARTIAL: 'bg-warning-light text-warning',
-    };
-    return styles[status] || 'bg-line-light text-ink-light';
-  };
-
-  const formatShortId = (id: string) => id.substring(id.length - 8).toUpperCase();
-
-  const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const modules: ModuleCard[] = [
     {
@@ -284,7 +264,7 @@ export function Dashboard() {
                   <tr key={job.id} className="hover:bg-page transition-colors group cursor-pointer" onClick={() => navigate('/history')}>
                     <td className="py-3.5 px-6 whitespace-nowrap">
                       <span className="font-mono text-sm font-medium text-brand group-hover:underline">
-                        {formatShortId(job.id)}
+                        {shortId(job.id)}
                       </span>
                     </td>
                     <td className="py-3.5 px-6 whitespace-nowrap">
@@ -294,7 +274,7 @@ export function Dashboard() {
                       <span className="text-sm text-ink-mid">{formatDateTime(job.createdAt)}</span>
                     </td>
                     <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(job.status)}`}>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(job.status).tone]}`}>
                         {job.status}
                       </span>
                     </td>

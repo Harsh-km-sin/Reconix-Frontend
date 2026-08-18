@@ -18,6 +18,7 @@ import { useAuth } from '@/modules/auth/hooks/useAuth';
 import { api } from '@/lib/api';
 import { JOB_TYPE } from '@/types';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import { formatCurrency } from '@/lib/format';
 
 export function JobReviewScreen({
     jobType,
@@ -162,10 +163,6 @@ export function JobReviewScreen({
             toast.error('Failed to submit job');
             setIsSubmitting(false);
         }
-    };
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
     };
 
     return (

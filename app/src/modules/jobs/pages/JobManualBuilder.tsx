@@ -10,6 +10,7 @@ import {
     Package
 } from 'lucide-react';
 import { xeroService } from '@/modules/xero/services/xeroService';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { JobReviewScreen } from '@/modules/jobs/components/JobReviewScreen';
 import toast from 'react-hot-toast';
 
@@ -313,9 +314,9 @@ export function JobManualBuilder() {
                                                                 </div>
                                                             </td>
                                                             <td className="py-4 px-6 font-mono text-xs font-bold text-ink">{bill.invoiceNumber}</td>
-                                                            <td className="py-4 px-6 text-xs text-ink-mid">{new Date(bill.invoiceDate).toLocaleDateString()}</td>
+                                                            <td className="py-4 px-6 text-xs text-ink-mid">{formatDate(bill.invoiceDate)}</td>
                                                             <td className="py-4 px-6 text-right font-mono font-bold text-ink">
-                                                                ${Number(bill.amountDue || 0).toFixed(2)}
+                                                                {formatCurrency(bill.amountDue ?? 0)}
                                                             </td>
                                                         </tr>
                                                     );

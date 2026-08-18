@@ -16,3 +16,12 @@ export { ToastContainer } from './feedback/ToastContainer';
 
 // ── hooks ───────────────────────────────────────────────────────────────────
 export { useIsMobile } from './hooks/useMobile';
+export { useDebounce } from './hooks/useDebounce';
+export { usePolling } from './hooks/usePolling';
+export { useTableState } from './hooks/useTableState';
+export type {
+  TableState,
+  UseTableStateOptions,
+  UseTableStateResult,
+  SortOrder,
+} from './hooks/useTableState';

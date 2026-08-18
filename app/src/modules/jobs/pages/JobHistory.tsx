@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import type { Job, JobType, JobStatus } from '@/types';
 import { JOB_TYPE, JOB_TYPE_LABELS } from '@/types';
 import { jobService } from '@/modules/jobs/services/jobService';
+import { formatCurrency, formatDateTime, formatDuration, shortId } from '@/lib/format';
+import { jobStatus, jobItemStatus, toneBadgeClasses } from '@/lib/status';
 import type { Paginated } from '@/lib/types/api';
 import {
   Calendar,
@@ -169,37 +171,7 @@ export function JobHistory() {
     }
   };
 
-  const getStatusBadge = (status: JobStatus) => {
-    const styles: Record<string, string> = {
-      PENDING: 'bg-warning-light text-warning',
-      RUNNING: 'bg-brand-light text-brand',
-      COMPLETED: 'bg-success-light text-success',
-      FAILED: 'bg-danger-light text-danger',
-      PARTIAL: 'bg-warning-light text-warning',
-    };
-    return styles[status] || 'bg-line-light text-ink-light';
-  };
-
   const getTypeLabel = (type: JobType) => JOB_TYPE_LABELS[type] ?? type;
-
-  const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatDuration = (start?: string | null, end?: string | null) => {
-    if (!start) return '—';
-    if (!end) return 'In progress';
-    const diff = new Date(end).getTime() - new Date(start).getTime();
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    return `${minutes}m ${seconds}s`;
-  };
 
   return (
     <div className="max-w-[1440px] mx-auto animate-fade-in">
@@ -345,7 +317,7 @@ export function JobHistory() {
                 className="hover:bg-brand-light transition-colors border-b border-line-light"
               >
                 <td className="py-3.5 px-4 font-mono text-sm text-brand">
-                  {job.id.substring(job.id.length - 8).toUpperCase()}
+                  {shortId(job.id)}
                 </td>
                 <td className="py-3.5 px-4">
                   <span className="px-2.5 py-1 bg-brand-light text-brand text-xs font-semibold rounded-full">
@@ -354,7 +326,7 @@ export function JobHistory() {
                 </td>
                 <td className="py-3.5 px-4 text-sm text-ink-mid">{formatDateTime(job.createdAt)}</td>
                 <td className="py-3.5 px-4">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(job.status)}`}>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(job.status).tone]}`}>
                     {job.status}
                   </span>
                 </td>
@@ -464,9 +436,9 @@ export function JobHistory() {
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <h2 className="text-xl font-semibold text-ink">
-                      {selectedJob.id.substring(selectedJob.id.length - 8).toUpperCase()}
+                      {shortId(selectedJob.id)}
                     </h2>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(selectedJob.status)}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${toneBadgeClasses[jobStatus(selectedJob.status).tone]}`}>
                       {selectedJob.status}
                     </span>
                   </div>
@@ -618,20 +590,13 @@ export function JobHistory() {
                           </td>
                           <td className="py-2 px-3 text-sm text-ink">{item.contactName || '—'}</td>
                           <td className="py-2 px-3 text-sm text-right font-mono">
-                            {item.expectedAmount !== null ? `$${Number(item.expectedAmount).toFixed(2)}` : '—'}
+                            {formatCurrency(item.expectedAmount)}
                           </td>
                           <td className="py-2 px-3 text-sm text-right font-mono text-ink">
-                            {item.allocatedAmount != null ? `$${Number(item.allocatedAmount).toFixed(2)}` : '—'}
+                            {formatCurrency(item.allocatedAmount)}
                           </td>
                           <td className="py-2 px-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.status === 'PROCESSED'
-                              ? 'bg-success-light text-success'
-                              : item.status === 'FAILED'
-                                ? 'bg-danger-light text-danger'
-                                : item.status === 'SKIPPED'
-                                  ? 'bg-line-light text-ink-light'
-                                  : 'bg-warning-light text-warning'
-                              }`}>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${toneBadgeClasses[jobItemStatus(item.status).tone]}`}>
                               {item.status}
                             </span>
                           </td>

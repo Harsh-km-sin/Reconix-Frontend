@@ -4,37 +4,23 @@ import { xeroService } from '@/modules/xero/services/xeroService';
 import type { SyncLogItem, SyncLogsModalProps } from '@/modules/xero/types';
 import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { getErrorMessage } from '@/lib/errors';
+import { formatDateTime, formatDuration } from '@/lib/format';
+import { syncStatus, toneBadgeClasses } from '@/lib/status';
 
-/** Elapsed time between start and completion, e.g. "2.4s". */
-function formatDuration(startedAt: string, completedAt: string | null): string {
-  if (!completedAt) return '—';
-  const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
-  if (ms < 0) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  const mins = Math.floor(ms / 60_000);
-  const secs = Math.round((ms % 60_000) / 1000);
-  return `${mins}m ${secs}s`;
-}
+const SYNC_STATUS_ICON = {
+  COMPLETED: CheckCircle2,
+  FAILED: XCircle,
+  RUNNING: Clock,
+} as const;
 
 function StatusBadge({ status }: { status: SyncLogItem['status'] }) {
-  if (status === 'COMPLETED') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success-light text-success">
-        <CheckCircle2 className="w-3 h-3" /> Completed
-      </span>
-    );
-  }
-  if (status === 'FAILED') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-danger-light text-danger">
-        <XCircle className="w-3 h-3" /> Failed
-      </span>
-    );
-  }
+  const { label, tone } = syncStatus(status);
+  const Icon = SYNC_STATUS_ICON[status];
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning-light text-warning">
-      <Clock className="w-3 h-3 animate-pulse" /> Running
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${toneBadgeClasses[tone]}`}
+    >
+      <Icon className={`w-3 h-3${status === 'RUNNING' ? ' animate-pulse' : ''}`} /> {label}
     </span>
   );
 }
@@ -125,7 +111,7 @@ export function SyncLogsModal({ tenantId, tenantName, onClose }: SyncLogsModalPr
                     <Fragment key={log.id}>
                       <tr className="border-b border-line-light">
                         <td className="py-2.5 px-3 text-sm text-ink whitespace-nowrap">
-                          {new Date(log.startedAt).toLocaleString()}
+                          {formatDateTime(log.startedAt)}
                         </td>
                         <td className="py-2.5 px-3 text-sm text-ink-mid">
                           {log.syncType === 'FULL' ? 'Full' : log.syncType === 'INCREMENTAL' ? 'Incremental' : log.syncType}

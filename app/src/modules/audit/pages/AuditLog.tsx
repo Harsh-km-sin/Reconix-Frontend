@@ -12,6 +12,8 @@ import {
 import { auditService } from '@/modules/audit/services/auditService';
 import type { AuditLog } from '@/modules/audit/types';
 import toast from 'react-hot-toast';
+import { formatTimestamp } from '@/lib/format';
+import { auditActionTone, toneBadgeClasses } from '@/lib/status';
 
 export function AuditLogPage() {
     const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -47,25 +49,6 @@ export function AuditLogPage() {
     useEffect(() => {
         fetchLogs();
     }, [page, actionFilter, resourceFilter]);
-
-    const formatDateTime = (dateStr: string) => {
-        return new Date(dateStr).toLocaleString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    };
-
-    const getActionColor = (action: string) => {
-        if (action.includes('CREATED')) return 'text-success bg-success-light';
-        if (action.includes('DELETED')) return 'text-danger bg-danger-light';
-        if (action.includes('UPDATED')) return 'text-warning bg-warning-light';
-        if (action.includes('APPROVED')) return 'text-brand bg-brand-light';
-        return 'text-ink-mid bg-line-light';
-    };
 
     return (
         <div className="max-w-[1440px] mx-auto animate-fade-in p-8">
@@ -152,7 +135,7 @@ export function AuditLogPage() {
                                     <td className="py-4 px-6 whitespace-nowrap">
                                         <div className="flex items-center gap-2 text-sm text-ink">
                                             <Clock className="w-4 h-4 text-ink-light" />
-                                            {formatDateTime(log.createdAt)}
+                                            {formatTimestamp(log.createdAt)}
                                         </div>
                                     </td>
                                     <td className="py-4 px-6 whitespace-nowrap">
@@ -167,7 +150,7 @@ export function AuditLogPage() {
                                         </div>
                                     </td>
                                     <td className="py-4 px-6 whitespace-nowrap">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${getActionColor(log.action)}`}>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${toneBadgeClasses[auditActionTone(log.action)]}`}>
                                             {log.action}
                                         </span>
                                     </td>
@@ -242,7 +225,7 @@ export function AuditLogPage() {
                             <div className="grid grid-cols-2 gap-6 bg-page border border-line rounded-xl p-5">
                                 <div>
                                     <p className="text-xs font-semibold text-ink-light uppercase tracking-wider mb-1">Action</p>
-                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${getActionColor(selectedLog.action)}`}>
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${toneBadgeClasses[auditActionTone(selectedLog.action)]}`}>
                                         {selectedLog.action}
                                     </span>
                                 </div>
@@ -258,7 +241,7 @@ export function AuditLogPage() {
                                 </div>
                                 <div>
                                     <p className="text-xs font-semibold text-ink-light uppercase tracking-wider mb-1">Timestamp</p>
-                                    <p className="text-sm text-ink">{formatDateTime(selectedLog.createdAt)}</p>
+                                    <p className="text-sm text-ink">{formatTimestamp(selectedLog.createdAt)}</p>
                                 </div>
                             </div>
 

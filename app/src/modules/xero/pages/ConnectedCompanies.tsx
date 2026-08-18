@@ -27,6 +27,7 @@ import { ErrorState } from '@/ui_library/feedback/ErrorState';
 import { SyncLogsModal } from '@/modules/xero/components/SyncLogsModal';
 import { getErrorMessage } from '@/lib/errors';
 import type { CompanyItem } from '@/modules/xero/types';
+import { formatDateTime, idPrefix } from '@/lib/format';
 
 
 export function ConnectedCompanies() {
@@ -236,7 +237,7 @@ export function ConnectedCompanies() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-ink">{company.tenantName}</h3>
-                      <p className="text-xs text-ink-light font-mono">{company.tenantId.slice(0, 8)}...</p>
+                      <p className="text-xs text-ink-light font-mono">{idPrefix(company.tenantId)}...</p>
                     </div>
                   </div>
                   {isActive ? (
@@ -257,7 +258,7 @@ export function ConnectedCompanies() {
                 {/* Sync Info */}
                 <div className="flex items-center gap-2 text-sm text-ink-mid mb-1">
                   <RefreshCw className="w-4 h-4" />
-                  Last sync: {company.lastSyncedAt ? new Date(company.lastSyncedAt).toLocaleString() : 'Never'}
+                  Last sync: {company.lastSyncedAt ? formatDateTime(company.lastSyncedAt) : 'Never'}
                 </div>
                 {company.lastSync && (
                   <div className="flex items-center gap-1.5 text-xs mb-4 pl-6">
