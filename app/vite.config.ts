@@ -8,10 +8,14 @@ import { visualizer } from 'rollup-plugin-visualizer'
 // Run `ANALYZE=true npm run build` to emit dist/stats.html (bundle treemap).
 const analyze = process.env.ANALYZE === 'true'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: './',
   plugins: [
-    inspectAttr(),
+    // Dev-only: stamps every JSX element with code-path="<source file>:<line>:<col>"
+    // so the browser inspector can jump to source. It has no build-time gate of
+    // its own, so it must be gated here — otherwise all ~1,200 of those strings,
+    // and the shape of our source tree, ship to production.
+    ...(command === 'serve' ? [inspectAttr()] : []),
     react(),
     ...(analyze
       ? [visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true })]
@@ -22,4 +26,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-});
+}));
