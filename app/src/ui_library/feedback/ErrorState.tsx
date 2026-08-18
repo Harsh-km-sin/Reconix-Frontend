@@ -44,7 +44,7 @@ export function ErrorState({
   const actionButton = action && (
     <button
       onClick={action.onClick}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E53935] text-white rounded-md text-xs font-semibold hover:bg-[#C62828] transition-colors"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-danger text-white rounded-md text-xs font-semibold hover:bg-danger-hover transition-colors"
     >
       {ActionIcon && <ActionIcon className="w-3.5 h-3.5" />}
       {action.label}
@@ -55,13 +55,13 @@ export function ErrorState({
     <div className="mt-2">
       <button
         onClick={() => setShowDetail((v) => !v)}
-        className="inline-flex items-center gap-1 text-xs text-[#8A8A8A] hover:text-[#555555] transition-colors"
+        className="inline-flex items-center gap-1 text-xs text-ink-light hover:text-ink-mid transition-colors"
       >
         {showDetail ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         Details
       </button>
       {showDetail && (
-        <pre className="mt-1.5 p-2 bg-[#FAFAFA] border border-[#EEEEEE] rounded text-[11px] text-[#555555] whitespace-pre-wrap break-words max-h-40 overflow-auto">
+        <pre className="mt-1.5 p-2 bg-page border border-[#EEEEEE] rounded text-[11px] text-ink-mid whitespace-pre-wrap break-words max-h-40 overflow-auto">
           {detail}
         </pre>
       )}
@@ -71,11 +71,11 @@ export function ErrorState({
   if (variant === 'page') {
     return (
       <div className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className}`}>
-        <div className="w-14 h-14 rounded-full bg-[#FFEBEE] flex items-center justify-center mb-4">
-          <AlertTriangle className="w-7 h-7 text-[#E53935]" />
+        <div className="w-14 h-14 rounded-full bg-danger-light flex items-center justify-center mb-4">
+          <AlertTriangle className="w-7 h-7 text-danger" />
         </div>
-        <h3 className="text-lg font-bold text-[#1A1A1A]">{title}</h3>
-        <p className="text-sm text-[#555555] mt-1 max-w-md">{message}</p>
+        <h3 className="text-lg font-bold text-ink">{title}</h3>
+        <p className="text-sm text-ink-mid mt-1 max-w-md">{message}</p>
         <div className="max-w-md w-full">{detailBlock}</div>
         {action && <div className="mt-5">{actionButton}</div>}
       </div>
@@ -84,21 +84,21 @@ export function ErrorState({
 
   const containerClass =
     variant === 'card'
-      ? 'p-4 bg-white border border-[#FFCDD2] rounded-xl'
-      : 'p-3 bg-[#FFEBEE] border border-[#FFCDD2] rounded-lg';
+      ? 'p-4 bg-surface border border-[#FFCDD2] rounded-xl'
+      : 'p-3 bg-danger-light border border-[#FFCDD2] rounded-lg';
 
   return (
     <div className={`${containerClass} ${className}`}>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="w-4 h-4 text-[#E53935] flex-shrink-0 mt-0.5" />
+        <AlertTriangle className="w-4 h-4 text-danger flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[#1A1A1A]">{title}</p>
-          <p className="text-sm text-[#555555] mt-0.5 break-words">{message}</p>
+          <p className="text-sm font-semibold text-ink">{title}</p>
+          <p className="text-sm text-ink-mid mt-0.5 break-words">{message}</p>
           {detailBlock}
           {action && <div className="mt-3">{actionButton}</div>}
         </div>
         {onDismiss && (
-          <button onClick={onDismiss} className="p-1 text-[#8A8A8A] hover:text-[#555555] rounded transition-colors" aria-label="Dismiss">
+          <button onClick={onDismiss} className="p-1 text-ink-light hover:text-ink-mid rounded transition-colors" aria-label="Dismiss">
             <X className="w-4 h-4" />
           </button>
         )}

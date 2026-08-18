@@ -43,10 +43,10 @@ export function AlertModal({
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
       <AlertDialogContent className="max-w-[400px]">
         <AlertDialogHeader className="text-center sm:text-center flex flex-col items-center">
-          <AlertDialogTitle className="text-xl font-bold text-[#1A1A1A]">
+          <AlertDialogTitle className="text-xl font-bold text-ink">
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-sm text-[#555555] mt-2">
+          <AlertDialogDescription className="text-sm text-ink-mid mt-2">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -54,7 +54,7 @@ export function AlertModal({
           <AlertDialogCancel
             onClick={onClose}
             disabled={isLoading}
-            className="border-[#E0E0E0] text-[#555555] hover:bg-[#F5F5F5] transition-colors"
+            className="border-line text-ink-mid hover:bg-line-light transition-colors"
           >
             {cancelText}
           </AlertDialogCancel>
@@ -63,8 +63,8 @@ export function AlertModal({
             disabled={isLoading}
             className={
               variant === "destructive"
-                ? "bg-[#E53935] hover:bg-[#D32F2F] text-white transition-colors"
-                : "bg-[#13B5EA] hover:bg-[#0E92BC] text-white transition-colors"
+                ? "bg-danger hover:bg-danger-hover text-white transition-colors"
+                : "bg-brand hover:bg-brand-hover text-white transition-colors"
             }
           >
             {isLoading ? (

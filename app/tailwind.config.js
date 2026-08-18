@@ -5,6 +5,50 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // ── Semantic tokens (see :root in src/index.css) ──────────────────
+        // These are the palette. Prefer them over any literal colour:
+        // bg-brand, text-ink-mid, border-line, bg-success-light, ...
+        // Alpha modifiers work: bg-brand/10, ring-danger/30.
+        brand: {
+          DEFAULT: "rgb(var(--brand) / <alpha-value>)",
+          hover: "rgb(var(--brand-hover) / <alpha-value>)",
+          pressed: "rgb(var(--brand-pressed) / <alpha-value>)",
+          light: "rgb(var(--brand-light) / <alpha-value>)",
+        },
+        ink: {
+          DEFAULT: "rgb(var(--ink) / <alpha-value>)",
+          mid: "rgb(var(--ink-mid) / <alpha-value>)",
+          light: "rgb(var(--ink-light) / <alpha-value>)",
+        },
+        line: {
+          DEFAULT: "rgb(var(--line) / <alpha-value>)",
+          light: "rgb(var(--line-light) / <alpha-value>)",
+        },
+        page: {
+          DEFAULT: "rgb(var(--page) / <alpha-value>)",
+          shade: "rgb(var(--page-shade) / <alpha-value>)",
+        },
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        success: {
+          DEFAULT: "rgb(var(--success) / <alpha-value>)",
+          hover: "rgb(var(--success-hover) / <alpha-value>)",
+          light: "rgb(var(--success-light) / <alpha-value>)",
+        },
+        warning: {
+          DEFAULT: "rgb(var(--warning) / <alpha-value>)",
+          light: "rgb(var(--warning-light) / <alpha-value>)",
+        },
+        danger: {
+          DEFAULT: "rgb(var(--danger) / <alpha-value>)",
+          hover: "rgb(var(--danger-hover) / <alpha-value>)",
+          light: "rgb(var(--danger-light) / <alpha-value>)",
+        },
+        neutral: {
+          DEFAULT: "rgb(var(--neutral) / <alpha-value>)",
+          light: "rgb(var(--neutral-light) / <alpha-value>)",
+        },
+
+        // ── shadcn primitive tokens ───────────────────────────────────────
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

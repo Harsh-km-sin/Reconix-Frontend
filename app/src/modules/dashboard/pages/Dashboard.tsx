@@ -72,13 +72,13 @@ export function Dashboard() {
 
   const getStatusBadge = (status: JobStatus) => {
     const styles: Record<string, string> = {
-      PENDING: 'bg-[#FFF4E5] text-[#FFA726]',
-      RUNNING: 'bg-[#E5F6FC] text-[#13B5EA]',
-      COMPLETED: 'bg-[#E8F5E9] text-[#3BB54A]',
-      FAILED: 'bg-[#FFEBEE] text-[#E53935]',
-      PARTIAL: 'bg-[#FFF4E5] text-[#FFA726]',
+      PENDING: 'bg-warning-light text-warning',
+      RUNNING: 'bg-brand-light text-brand',
+      COMPLETED: 'bg-success-light text-success',
+      FAILED: 'bg-danger-light text-danger',
+      PARTIAL: 'bg-warning-light text-warning',
     };
-    return styles[status] || 'bg-[#F5F5F5] text-[#8A8A8A]';
+    return styles[status] || 'bg-line-light text-ink-light';
   };
 
   const formatShortId = (id: string) => id.substring(id.length - 8).toUpperCase();
@@ -99,7 +99,7 @@ export function Dashboard() {
       description: 'Create credit notes and allocate against invoices',
       icon: RefreshCw,
       path: jobBuilderPath(JOB_TYPE.INVOICE_REVERSAL),
-      color: '#13B5EA',
+      color: 'brand',
     },
     {
       id: 'allocation',
@@ -107,7 +107,7 @@ export function Dashboard() {
       description: 'Match overpayments to outstanding bills',
       icon: CreditCard,
       path: jobBuilderPath(JOB_TYPE.OVERPAYMENT_ALLOCATION),
-      color: '#3BB54A',
+      color: 'success',
     },
     {
       id: 'create-op',
@@ -115,7 +115,7 @@ export function Dashboard() {
       description: 'Record new overpayments in Xero',
       icon: PlusCircle,
       path: '/create-overpayment',
-      color: '#FFA726',
+      color: 'warning',
     },
     {
       id: 'history',
@@ -123,7 +123,7 @@ export function Dashboard() {
       description: 'View past executions and audit logs',
       icon: ClipboardList,
       path: '/history',
-      color: '#8A8A8A',
+      color: 'ink-light',
       badge: stats.pendingJobs > 0 ? { count: stats.pendingJobs, type: 'warning' } : undefined,
     },
     {
@@ -132,7 +132,7 @@ export function Dashboard() {
       description: 'Manage Xero integrations and sync status',
       icon: Building2,
       path: '/companies',
-      color: '#13B5EA',
+      color: 'brand',
     },
     {
       id: 'settings',
@@ -140,7 +140,7 @@ export function Dashboard() {
       description: 'User preferences and company configuration',
       icon: Settings,
       path: '/settings',
-      color: '#555555',
+      color: 'ink-mid',
     },
     {
       id: 'audit',
@@ -148,7 +148,7 @@ export function Dashboard() {
       description: 'Review security events and system changes',
       icon: ClipboardList,
       path: '/audit',
-      color: '#E53935',
+      color: 'danger',
     },
   ];
 
@@ -164,8 +164,8 @@ export function Dashboard() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Dashboard</h1>
-          <p className="text-[#555555]">Welcome back{user?.fullName ? `, ${user.fullName}` : ''}. Here&apos;s what&apos;s happening today.</p>
+          <h1 className="text-2xl font-bold text-ink mb-2">Dashboard</h1>
+          <p className="text-ink-mid">Welcome back{user?.fullName ? `, ${user.fullName}` : ''}. Here&apos;s what&apos;s happening today.</p>
         </div>
       </div>
 
@@ -174,29 +174,29 @@ export function Dashboard() {
         {quickStats.map((stat, index) => (
           <div
             key={index}
-            className="bg-white border border-[#E0E0E0] rounded-lg p-5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-250 relative overflow-hidden"
+            className="bg-surface border border-line rounded-lg p-5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-250 relative overflow-hidden"
           >
-            <div className={`absolute top-0 left-0 w-1 rounded-l-lg h-full ${stat.trend === 'up' ? 'bg-[#3BB54A]' :
-              stat.trend === 'down' ? 'bg-[#E53935]' :
+            <div className={`absolute top-0 left-0 w-1 rounded-l-lg h-full ${stat.trend === 'up' ? 'bg-success' :
+              stat.trend === 'down' ? 'bg-danger' :
                 'bg-transparent'
               }`} />
 
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-[#8A8A8A] mb-1">{stat.label}</p>
+                <p className="text-sm text-ink-light mb-1">{stat.label}</p>
                 <div className="flex items-center gap-2">
-                  {isLoading && <Loader2 className="w-4 h-4 text-[#E0E0E0] animate-spin" />}
-                  <p className="text-2xl font-bold text-[#1A1A1A]">{stat.value}</p>
+                  {isLoading && <Loader2 className="w-4 h-4 text-line animate-spin" />}
+                  <p className="text-2xl font-bold text-ink">{stat.value}</p>
                 </div>
-                <p className="text-xs text-[#8A8A8A] mt-1">{stat.subtext}</p>
+                <p className="text-xs text-ink-light mt-1">{stat.subtext}</p>
               </div>
-              <div className={`p-2 rounded-lg ${stat.trend === 'up' ? 'bg-[#E8F5E9]' :
-                stat.trend === 'down' ? 'bg-[#FFEBEE]' :
-                  'bg-[#E5F6FC]'
+              <div className={`p-2 rounded-lg ${stat.trend === 'up' ? 'bg-success-light' :
+                stat.trend === 'down' ? 'bg-danger-light' :
+                  'bg-brand-light'
                 }`}>
-                <stat.icon className={`w-5 h-5 ${stat.trend === 'up' ? 'text-[#3BB54A]' :
-                  stat.trend === 'down' ? 'text-[#E53935]' :
-                    'text-[#13B5EA]'
+                <stat.icon className={`w-5 h-5 ${stat.trend === 'up' ? 'text-success' :
+                  stat.trend === 'down' ? 'text-danger' :
+                    'text-brand'
                   }`} />
               </div>
             </div>
@@ -210,34 +210,34 @@ export function Dashboard() {
           <button
             key={module.id}
             onClick={() => navigate(module.path)}
-            className="group bg-white border border-[#E0E0E0] rounded-lg p-6 text-left transition-all duration-250 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] hover:border-[#13B5EA] hover:-translate-y-0.5 animate-slide-up"
+            className="group bg-surface border border-line rounded-lg p-6 text-left transition-all duration-250 hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] hover:border-brand hover:-translate-y-0.5 animate-slide-up"
             style={{ animationDelay: `${index * 50}ms` }}
           >
             <div className="flex items-start justify-between mb-4">
               <div
                 className="w-12 h-12 rounded-lg flex items-center justify-center transition-transform duration-250 group-hover:scale-110"
-                style={{ backgroundColor: `${module.color}15` }}
+                style={{ backgroundColor: `rgb(var(--${module.color}) / 0.08)` }}
               >
-                <module.icon className="w-6 h-6" style={{ color: module.color }} />
+                <module.icon className="w-6 h-6" style={{ color: `rgb(var(--${module.color}))` }} />
               </div>
               {module.badge && (
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${module.badge.type === 'error' ? 'bg-[#FFEBEE] text-[#E53935]' :
-                  module.badge.type === 'warning' ? 'bg-[#FFF4E5] text-[#FFA726]' :
-                    'bg-[#E5F6FC] text-[#13B5EA]'
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${module.badge.type === 'error' ? 'bg-danger-light text-danger' :
+                  module.badge.type === 'warning' ? 'bg-warning-light text-warning' :
+                    'bg-brand-light text-brand'
                   }`}>
                   {module.badge.count} pending
                 </span>
               )}
             </div>
 
-            <h3 className="text-lg font-semibold text-[#1A1A1A] mb-2 group-hover:text-[#13B5EA] transition-colors">
+            <h3 className="text-lg font-semibold text-ink mb-2 group-hover:text-brand transition-colors">
               {module.title}
             </h3>
-            <p className="text-sm text-[#555555] mb-4 line-clamp-2">
+            <p className="text-sm text-ink-mid mb-4 line-clamp-2">
               {module.description}
             </p>
 
-            <div className="flex items-center text-sm font-medium text-[#13B5EA] opacity-0 group-hover:opacity-100 transition-opacity duration-250">
+            <div className="flex items-center text-sm font-medium text-brand opacity-0 group-hover:opacity-100 transition-opacity duration-250">
               Go to module
               <svg className="w-4 h-4 ml-1 transition-transform duration-250 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -248,12 +248,12 @@ export function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="mt-8 bg-white border border-[#E0E0E0] rounded-lg overflow-hidden">
-        <div className="p-6 border-b border-[#E0E0E0] flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[#1A1A1A]">Recent Activity</h3>
+      <div className="mt-8 bg-surface border border-line rounded-lg overflow-hidden">
+        <div className="p-6 border-b border-line flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-ink">Recent Activity</h3>
           <button
             onClick={() => navigate('/history')}
-            className="text-sm font-medium text-[#13B5EA] hover:underline flex items-center"
+            className="text-sm font-medium text-brand hover:underline flex items-center"
           >
             View All
           </button>
@@ -261,37 +261,37 @@ export function Dashboard() {
 
         <div className="relative min-h-[120px]">
           {isLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-              <Loader2 className="w-6 h-6 text-[#13B5EA] animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center bg-surface/80 z-10">
+              <Loader2 className="w-6 h-6 text-brand animate-spin" />
             </div>
           ) : recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-[#8A8A8A]">
+            <div className="p-8 text-center text-ink-light">
               No recent jobs found.
             </div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="bg-[#FAFAFA] border-b border-[#E0E0E0]">
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-[#555555] uppercase tracking-wide">Job ID</th>
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-[#555555] uppercase tracking-wide">Type</th>
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-[#555555] uppercase tracking-wide">Date</th>
-                  <th className="py-3 px-6 text-left text-xs font-semibold text-[#555555] uppercase tracking-wide">Status</th>
-                  <th className="py-3 px-6 text-right text-xs font-semibold text-[#555555] uppercase tracking-wide">Items</th>
+                <tr className="bg-page border-b border-line">
+                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Job ID</th>
+                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Type</th>
+                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Date</th>
+                  <th className="py-3 px-6 text-left text-xs font-semibold text-ink-mid uppercase tracking-wide">Status</th>
+                  <th className="py-3 px-6 text-right text-xs font-semibold text-ink-mid uppercase tracking-wide">Items</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F5F5F5]">
+              <tbody className="divide-y divide-line-light">
                 {recentActivity.map((job) => (
-                  <tr key={job.id} className="hover:bg-[#FAFAFA] transition-colors group cursor-pointer" onClick={() => navigate('/history')}>
+                  <tr key={job.id} className="hover:bg-page transition-colors group cursor-pointer" onClick={() => navigate('/history')}>
                     <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="font-mono text-sm font-medium text-[#13B5EA] group-hover:underline">
+                      <span className="font-mono text-sm font-medium text-brand group-hover:underline">
                         {formatShortId(job.id)}
                       </span>
                     </td>
                     <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="text-sm text-[#1A1A1A]">{job.jobType.replace(/_/g, ' ')}</span>
+                      <span className="text-sm text-ink">{job.jobType.replace(/_/g, ' ')}</span>
                     </td>
                     <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="text-sm text-[#555555]">{formatDateTime(job.createdAt)}</span>
+                      <span className="text-sm text-ink-mid">{formatDateTime(job.createdAt)}</span>
                     </td>
                     <td className="py-3.5 px-6 whitespace-nowrap">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(job.status)}`}>
@@ -299,7 +299,7 @@ export function Dashboard() {
                       </span>
                     </td>
                     <td className="py-3.5 px-6 whitespace-nowrap text-right">
-                      <span className="text-sm text-[#555555]">{job.processedCount}/{job.totalItems}</span>
+                      <span className="text-sm text-ink-mid">{job.processedCount}/{job.totalItems}</span>
                     </td>
                   </tr>
                 ))}

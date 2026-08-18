@@ -55,10 +55,10 @@ function App() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+      <div className="min-h-screen flex items-center justify-center bg-page">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#E5F6FC] border-t-[#13B5EA] rounded-full animate-spin" />
-          <p className="text-[#555555]">Loading...</p>
+          <div className="w-12 h-12 border-4 border-brand-light border-t-brand rounded-full animate-spin" />
+          <p className="text-ink-mid">Loading...</p>
         </div>
       </div>
     );

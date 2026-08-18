@@ -12,48 +12,72 @@
     --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
-    --primary: 195 83% 50%;
+    --primary: 194.8 85% 49.6%;        /* = --brand #13B5EA */
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 33%;
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 54%;
-    --accent: 195 83% 95%;
-    --accent-foreground: 195 83% 40%;
+    --accent: 195.7 79.3% 94.3%;       /* = --brand-light #E5F6FC */
+    --accent-foreground: 194.5 86.1% 39.6%;  /* = --brand-hover #0E92BC */
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 88%;
     --input: 0 0% 88%;
-    --ring: 195 83% 50%;
+    --ring: 194.8 85% 49.6%;           /* = --brand */
     --radius: 0.5rem;
     
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 33%;
-    --sidebar-primary: 195 83% 50%;
+    --sidebar-primary: 194.8 85% 49.6%;    /* = --brand */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 195 83% 95%;
-    --sidebar-accent-foreground: 195 83% 40%;
+    --sidebar-accent: 195.7 79.3% 94.3%;   /* = --brand-light */
+    --sidebar-accent-foreground: 194.5 86.1% 39.6%; /* = --brand-hover */
     --sidebar-border: 0 0% 88%;
-    --sidebar-ring: 195 83% 50%;
+    --sidebar-ring: 194.8 85% 49.6%;       /* = --brand */
     
-    /* Custom Colors */
-    --xero-blue: #13B5EA;
-    --xero-blue-hover: #0E92BC;
-    --xero-blue-pressed: #0B7599;
-    --xero-blue-light: #E5F6FC;
-    --success-green: #3BB54A;
-    --success-green-light: #E8F5E9;
-    --warning-amber: #FFA726;
-    --warning-amber-light: #FFF4E5;
-    --error-red: #E53935;
-    --error-red-light: #FFEBEE;
-    --text-dark: #1A1A1A;
-    --text-mid: #555555;
-    --text-light: #8A8A8A;
-    --border-color: #E0E0E0;
-    --border-light: #F5F5F5;
-    --bg-page: #FAFAFA;
-    --bg-surface: #FFFFFF;
+    /* ── Semantic design tokens ───────────────────────────────────────────
+     * Space-separated RGB channels, not hex, so Tailwind can compose an alpha
+     * with them: `rgb(var(--brand) / <alpha-value>)` makes bg-brand/10 work.
+     * Exposed as utilities in tailwind.config.js — never hard-code these
+     * values in a className; use bg-brand, text-ink-mid, border-line, etc.
+     * The trailing comment is the hex each triplet replaces, exactly.
+     */
+    --brand: 19 181 234;          /* #13B5EA */
+    --brand-hover: 14 146 188;    /* #0E92BC */
+    --brand-pressed: 11 117 153;  /* #0B7599 */
+    --brand-light: 229 246 252;   /* #E5F6FC */
+
+    --ink: 26 26 26;              /* #1A1A1A  primary text  */
+    --ink-mid: 85 85 85;          /* #555555  body text     */
+    --ink-light: 138 138 138;     /* #8A8A8A  muted text    */
+
+    --line: 224 224 224;          /* #E0E0E0  borders       */
+    --line-light: 245 245 245;    /* #F5F5F5  hairlines     */
+
+    --page: 250 250 250;          /* #FAFAFA  app background */
+    --surface: 255 255 255;       /* #FFFFFF  card background */
+
+    --success: 59 181 74;         /* #3BB54A */
+    --success-light: 232 245 233; /* #E8F5E9 */
+    --warning: 255 167 38;        /* #FFA726 */
+    --warning-light: 255 244 229; /* #FFF4E5 */
+    --danger: 229 57 53;          /* #E53935 */
+    --danger-light: 255 235 238;  /* #FFEBEE */
+
+    /* Hover shades, so a darker-on-hover state is one value, not a guess.
+     * danger-hover replaces BOTH #C62828 and #D32F2F, which were two
+     * near-identical dark reds used for the same job in different files. */
+    --success-hover: 46 146 59;   /* #2E923B */
+    --danger-hover: 198 40 40;    /* #C62828 */
+
+    /* "Not applicable" status — used where success/warning/danger do not fit,
+     * e.g. an item whose validation never ran. */
+    --neutral: 84 110 122;        /* #546E7A */
+    --neutral-light: 236 239 241; /* #ECEFF1 */
+
+    /* Far end of the page gradient on the signed-out screens. */
+    --page-shade: 240 240 240;    /* #F0F0F0 */
   }
 }
 
@@ -79,43 +103,43 @@
 @layer components {
   /* Button Styles */
   .btn-primary {
-    @apply bg-[#13B5EA] text-white px-6 py-3 rounded-md font-semibold text-sm
+    @apply bg-brand text-white px-6 py-3 rounded-md font-semibold text-sm
            transition-all duration-200 ease-out
-           hover:bg-[#0E92BC] hover:scale-[1.02]
-           active:bg-[#0B7599] active:scale-[0.98]
-           disabled:bg-[#E0E0E0] disabled:text-[#8A8A8A] disabled:cursor-not-allowed disabled:hover:scale-100;
+           hover:bg-brand-hover hover:scale-[1.02]
+           active:bg-brand-pressed active:scale-[0.98]
+           disabled:bg-line disabled:text-ink-light disabled:cursor-not-allowed disabled:hover:scale-100;
   }
   
   .btn-secondary {
-    @apply bg-transparent text-[#13B5EA] border border-[#13B5EA] px-6 py-3 rounded-md font-semibold text-sm
+    @apply bg-transparent text-brand border border-brand px-6 py-3 rounded-md font-semibold text-sm
            transition-all duration-200 ease-out
-           hover:bg-[#E5F6FC];
+           hover:bg-brand-light;
   }
   
   .btn-destructive {
-    @apply bg-[#E53935] text-white px-6 py-3 rounded-md font-semibold text-sm
+    @apply bg-danger text-white px-6 py-3 rounded-md font-semibold text-sm
            transition-all duration-200 ease-out
-           hover:bg-[#C62828];
+           hover:bg-danger-hover;
   }
   
   /* Card Styles */
   .card {
-    @apply bg-white border border-[#E0E0E0] rounded-lg p-6
+    @apply bg-surface border border-line rounded-lg p-6
            shadow-[0_1px_3px_rgba(0,0,0,0.08)]
            transition-all duration-300 ease-out
-           hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] hover:border-[#13B5EA];
+           hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] hover:border-brand;
   }
   
   /* Input Styles */
   .input-field {
-    @apply h-10 px-3 py-2 border border-[#E0E0E0] rounded-md text-sm
+    @apply h-10 px-3 py-2 border border-line rounded-md text-sm
            transition-all duration-200 ease-out
-           focus:border-[#13B5EA] focus:ring-2 focus:ring-[#13B5EA]/10 focus:outline-none
-           hover:border-[#13B5EA]/50;
+           focus:border-brand focus:ring-2 focus:ring-brand/10 focus:outline-none
+           hover:border-brand/50;
   }
   
   .input-field.error {
-    @apply border-[#E53935] focus:border-[#E53935] focus:ring-[#E53935]/10;
+    @apply border-danger focus:border-danger focus:ring-danger/10;
   }
   
   /* Badge Styles */
@@ -124,23 +148,23 @@
   }
   
   .badge-success {
-    @apply bg-[#3BB54A] text-white;
+    @apply bg-success text-white;
   }
   
   .badge-warning {
-    @apply bg-[#FFA726] text-white;
+    @apply bg-warning text-white;
   }
   
   .badge-error {
-    @apply bg-[#E53935] text-white;
+    @apply bg-danger text-white;
   }
   
   .badge-info {
-    @apply bg-[#13B5EA] text-white;
+    @apply bg-brand text-white;
   }
   
   .badge-neutral {
-    @apply bg-[#8A8A8A] text-white;
+    @apply bg-ink-light text-white;
   }
   
   /* Table Styles */
@@ -149,12 +173,12 @@
   }
   
   .data-table th {
-    @apply bg-[#FAFAFA] text-[#555555] text-xs font-semibold uppercase tracking-wide
-           py-3 px-4 border-b-2 border-[#E0E0E0] text-left;
+    @apply bg-page text-ink-mid text-xs font-semibold uppercase tracking-wide
+           py-3 px-4 border-b-2 border-line text-left;
   }
   
   .data-table td {
-    @apply py-3.5 px-4 border-b border-[#F5F5F5] text-sm;
+    @apply py-3.5 px-4 border-b border-line-light text-sm;
   }
   
   .data-table tr {
@@ -162,11 +186,11 @@
   }
   
   .data-table tbody tr:hover {
-    @apply bg-[#E5F6FC];
+    @apply bg-brand-light;
   }
   
   .data-table tbody tr.selected {
-    @apply bg-[#D1F0FA] border-l-4 border-l-[#13B5EA];
+    @apply bg-[#D1F0FA] border-l-4 border-l-brand;
   }
   
   /* Status Indicators */
@@ -175,19 +199,19 @@
   }
   
   .status-dot.pending {
-    @apply bg-[#FFA726];
+    @apply bg-warning;
   }
   
   .status-dot.running {
-    @apply bg-[#13B5EA] animate-pulse;
+    @apply bg-brand animate-pulse;
   }
   
   .status-dot.completed {
-    @apply bg-[#3BB54A];
+    @apply bg-success;
   }
   
   .status-dot.failed {
-    @apply bg-[#E53935];
+    @apply bg-danger;
   }
 }
 
@@ -219,7 +243,10 @@
   
   .animate-shimmer {
     animation: shimmer 1.5s infinite;
-    background: linear-gradient(90deg, #F5F5F5 25%, #E0E0E0 50%, #F5F5F5 75%);
+    background: linear-gradient(90deg,
+      rgb(var(--line-light)) 25%,
+      rgb(var(--line)) 50%,
+      rgb(var(--line-light)) 75%);
     background-size: 200% 100%;
   }
   
@@ -230,17 +257,17 @@
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #F5F5F5;
+    background: rgb(var(--line-light));
     border-radius: 3px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #D0D0D0;
+    background: rgb(var(--line) / 0.75);
     border-radius: 3px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #B0B0B0;
+    background: rgb(var(--ink-light));
   }
 }
 

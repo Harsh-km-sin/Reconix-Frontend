@@ -176,21 +176,21 @@ export function Settings() {
   return (
     <div className="max-w-[1200px] mx-auto animate-fade-in p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Settings</h1>
-        <p className="text-[#555555]">Manage your account and company preferences</p>
+        <h1 className="text-2xl font-bold text-ink mb-2">Settings</h1>
+        <p className="text-ink-mid">Manage your account and company preferences</p>
       </div>
 
       <div className="flex gap-8">
         <aside className="w-64 flex-shrink-0">
-          <div className="bg-white border border-[#E0E0E0] rounded-lg overflow-hidden sticky top-24">
+          <div className="bg-surface border border-line rounded-lg overflow-hidden sticky top-24">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-[#E5F6FC] text-[#13B5EA] border-l-4 border-l-[#13B5EA]'
-                    : 'text-[#555555] hover:bg-[#F5F5F5] border-l-4 border-l-transparent'
+                    ? 'bg-brand-light text-brand border-l-4 border-l-brand'
+                    : 'text-ink-mid hover:bg-line-light border-l-4 border-l-transparent'
                 }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -202,31 +202,31 @@ export function Settings() {
 
         <div className="flex-1 space-y-6">
           {activeTab === 'profile' && (
-            <div className="bg-white border border-[#E0E0E0] rounded-xl p-8 shadow-sm">
-              <h2 className="text-lg font-semibold text-[#1A1A1A] mb-8">User Profile</h2>
+            <div className="bg-surface border border-line rounded-xl p-8 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink mb-8">User Profile</h2>
               <div className="space-y-6 max-w-md">
                 <div>
-                  <label className="block text-sm font-medium text-[#555555] mb-2">Full Name</label>
+                  <label className="block text-sm font-medium text-ink-mid mb-2">Full Name</label>
                   <input
                     type="text"
                     value={profile.fullName}
                     onChange={(e) => setProfile(p => ({ ...p, fullName: e.target.value }))}
-                    className="w-full h-11 px-4 border border-[#E0E0E0] rounded-lg focus:border-[#13B5EA] focus:outline-none"
+                    className="w-full h-11 px-4 border border-line rounded-lg focus:border-brand focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#555555] mb-2">Phone Number</label>
+                  <label className="block text-sm font-medium text-ink-mid mb-2">Phone Number</label>
                   <input
                     type="tel"
                     value={profile.phoneNumber}
                     onChange={(e) => setProfile(p => ({ ...p, phoneNumber: e.target.value }))}
-                    className="w-full h-11 px-4 border border-[#E0E0E0] rounded-lg focus:border-[#13B5EA] focus:outline-none"
+                    className="w-full h-11 px-4 border border-line rounded-lg focus:border-brand focus:outline-none"
                   />
                 </div>
                 <button
                   onClick={handleSaveProfile}
                   disabled={isSaving}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-[#13B5EA] text-white rounded-lg font-medium hover:bg-[#0E92BC] transition-all"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-brand text-white rounded-lg font-medium hover:bg-brand-hover transition-all"
                 >
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Changes
@@ -236,21 +236,21 @@ export function Settings() {
           )}
 
           {activeTab === 'accounting' && (
-            <div className="bg-white border border-[#E0E0E0] rounded-xl p-8 shadow-sm">
-              <h2 className="text-lg font-semibold text-[#1A1A1A] mb-2 flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-[#13B5EA]" />
+            <div className="bg-surface border border-line rounded-xl p-8 shadow-sm">
+              <h2 className="text-lg font-semibold text-ink mb-2 flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-brand" />
                 Reversal Settings
               </h2>
-              <p className="text-sm text-[#555555] mb-8">Control how partial reversal amounts are interpreted when creating Xero Credit Notes.</p>
+              <p className="text-sm text-ink-mid mb-8">Control how partial reversal amounts are interpreted when creating Xero Credit Notes.</p>
 
               <div className="max-w-lg space-y-4">
-                <label className="block text-sm font-semibold text-[#1A1A1A] mb-3">Partial Reversal Amount Mode</label>
+                <label className="block text-sm font-semibold text-ink mb-3">Partial Reversal Amount Mode</label>
 
                 <label
                   className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
                     companySettings.partialReversalAmountMode === 'TAX_EXCLUSIVE'
-                      ? 'border-[#13B5EA] bg-[#E5F6FC] ring-2 ring-[#13B5EA]/20'
-                      : 'border-[#E0E0E0] hover:border-[#BDBDBD]'
+                      ? 'border-brand bg-brand-light ring-2 ring-brand/20'
+                      : 'border-line hover:border-[#BDBDBD]'
                   }`}
                 >
                   <input
@@ -259,21 +259,21 @@ export function Settings() {
                     value="TAX_EXCLUSIVE"
                     checked={companySettings.partialReversalAmountMode === 'TAX_EXCLUSIVE'}
                     onChange={() => setCompanySettings(s => ({ ...s, partialReversalAmountMode: 'TAX_EXCLUSIVE' }))}
-                    className="mt-0.5 w-4 h-4 text-[#13B5EA] focus:ring-[#13B5EA]"
+                    className="mt-0.5 w-4 h-4 text-brand focus:ring-brand"
                   />
                   <div>
-                    <span className="font-semibold text-[#1A1A1A] text-sm">Tax Exclusive</span>
-                    <span className="ml-2 px-1.5 py-0.5 bg-[#E8F5E9] text-[#3BB54A] text-[9px] font-bold rounded">DEFAULT</span>
-                    <p className="text-xs text-[#555555] mt-1">Reversal amount = tax-exclusive line amount. Taxes are added on top by Xero.</p>
-                    <p className="text-[10px] text-[#8A8A8A] mt-1 font-mono">e.g. Enter $1,500 → CN Total = $1,500 + taxes</p>
+                    <span className="font-semibold text-ink text-sm">Tax Exclusive</span>
+                    <span className="ml-2 px-1.5 py-0.5 bg-success-light text-success text-[9px] font-bold rounded">DEFAULT</span>
+                    <p className="text-xs text-ink-mid mt-1">Reversal amount = tax-exclusive line amount. Taxes are added on top by Xero.</p>
+                    <p className="text-[10px] text-ink-light mt-1 font-mono">e.g. Enter $1,500 → CN Total = $1,500 + taxes</p>
                   </div>
                 </label>
 
                 <label
                   className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
                     companySettings.partialReversalAmountMode === 'BILL_TOTAL'
-                      ? 'border-[#13B5EA] bg-[#E5F6FC] ring-2 ring-[#13B5EA]/20'
-                      : 'border-[#E0E0E0] hover:border-[#BDBDBD]'
+                      ? 'border-brand bg-brand-light ring-2 ring-brand/20'
+                      : 'border-line hover:border-[#BDBDBD]'
                   }`}
                 >
                   <input
@@ -282,18 +282,18 @@ export function Settings() {
                     value="BILL_TOTAL"
                     checked={companySettings.partialReversalAmountMode === 'BILL_TOTAL'}
                     onChange={() => setCompanySettings(s => ({ ...s, partialReversalAmountMode: 'BILL_TOTAL' }))}
-                    className="mt-0.5 w-4 h-4 text-[#13B5EA] focus:ring-[#13B5EA]"
+                    className="mt-0.5 w-4 h-4 text-brand focus:ring-brand"
                   />
                   <div>
-                    <span className="font-semibold text-[#1A1A1A] text-sm">Bill Total (Including Tax)</span>
-                    <p className="text-xs text-[#555555] mt-1">Reversal amount = final amount removed from bill including taxes. System back-calculates the tax-exclusive portion.</p>
-                    <p className="text-[10px] text-[#8A8A8A] mt-1 font-mono">e.g. Enter $1,500 → CN Total = exactly $1,500</p>
+                    <span className="font-semibold text-ink text-sm">Bill Total (Including Tax)</span>
+                    <p className="text-xs text-ink-mid mt-1">Reversal amount = final amount removed from bill including taxes. System back-calculates the tax-exclusive portion.</p>
+                    <p className="text-[10px] text-ink-light mt-1 font-mono">e.g. Enter $1,500 → CN Total = exactly $1,500</p>
                   </div>
                 </label>
 
-                <div className="bg-[#FFF4E5] border border-[#FFE0B2] rounded-lg p-3 mt-4">
+                <div className="bg-warning-light border border-[#FFE0B2] rounded-lg p-3 mt-4">
                   <p className="text-[11px] text-[#795548] flex items-start gap-2">
-                    <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-[#FFA726]" />
+                    <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-warning" />
                     Changing this setting only affects <strong>newly created</strong> reversals. Existing schedules and credit notes are not modified.
                   </p>
                 </div>
@@ -318,7 +318,7 @@ export function Settings() {
                     }
                   }}
                   disabled={accountingSaving}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-[#13B5EA] text-white rounded-lg font-medium hover:bg-[#0E92BC] transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-brand text-white rounded-lg font-medium hover:bg-brand-hover transition-all disabled:opacity-50"
                 >
                   {accountingSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save Accounting Settings
@@ -329,9 +329,9 @@ export function Settings() {
 
           {activeTab === 'security' && (
             <div className="space-y-6">
-              <div className="bg-white border border-[#E0E0E0] rounded-xl p-8 shadow-sm">
-                <h2 className="text-lg font-semibold text-[#1A1A1A] mb-6 flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-[#13B5EA]" />
+              <div className="bg-surface border border-line rounded-xl p-8 shadow-sm">
+                <h2 className="text-lg font-semibold text-ink mb-6 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-brand" />
                   Password
                 </h2>
                 <div className="space-y-4 max-w-md">
@@ -340,50 +340,50 @@ export function Settings() {
                     placeholder="Current password"
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData(p => ({ ...p, currentPassword: e.target.value }))}
-                    className="w-full h-11 px-4 border border-[#E0E0E0] rounded-lg focus:outline-none"
+                    className="w-full h-11 px-4 border border-line rounded-lg focus:outline-none"
                   />
                   <input
                     type="password"
                     placeholder="New password"
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData(p => ({ ...p, newPassword: e.target.value }))}
-                    className="w-full h-11 px-4 border border-[#E0E0E0] rounded-lg focus:outline-none"
+                    className="w-full h-11 px-4 border border-line rounded-lg focus:outline-none"
                   />
                   <input
                     type="password"
                     placeholder="Confirm new password"
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData(p => ({ ...p, confirmPassword: e.target.value }))}
-                    className="w-full h-11 px-4 border border-[#E0E0E0] rounded-lg focus:outline-none"
+                    className="w-full h-11 px-4 border border-line rounded-lg focus:outline-none"
                   />
                   <button
                     onClick={handleChangePassword}
                     disabled={isSaving}
-                    className="px-6 py-2.5 bg-[#13B5EA] text-white rounded-lg font-medium hover:bg-[#0E92BC]"
+                    className="px-6 py-2.5 bg-brand text-white rounded-lg font-medium hover:bg-brand-hover"
                   >
                     Update Password
                   </button>
                 </div>
               </div>
 
-              <div className="bg-white border border-[#E0E0E0] rounded-xl p-8 shadow-sm">
+              <div className="bg-surface border border-line rounded-xl p-8 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-[#3BB54A]" />
+                  <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-success" />
                     Two-Factor Authentication
                   </h2>
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${mfaEnabled ? 'bg-[#E8F5E9] text-[#3BB54A]' : 'bg-[#F5F5F5] text-[#8A8A8A]'}`}>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${mfaEnabled ? 'bg-success-light text-success' : 'bg-line-light text-ink-light'}`}>
                     {mfaEnabled ? 'ENABLED' : 'DISABLED'}
                   </span>
                 </div>
 
                 {!mfaEnabled && mfaSetupStep === 0 && (
                   <div className="max-w-md">
-                    <p className="text-sm text-[#555555] mb-6">Protect your account with a secondary verification code.</p>
+                    <p className="text-sm text-ink-mid mb-6">Protect your account with a secondary verification code.</p>
                     <button
                       onClick={handleStartMFASetup}
                       disabled={isMFALoading}
-                      className="px-6 py-2.5 bg-[#13B5EA] text-white rounded-lg font-medium"
+                      className="px-6 py-2.5 bg-brand text-white rounded-lg font-medium"
                     >
                       Enable 2FA
                     </button>
@@ -392,9 +392,9 @@ export function Settings() {
 
                 {mfaSetupStep === 1 && mfaSetupData && (
                   <div className="max-w-md space-y-6 animate-fade-in">
-                    <div className="p-4 bg-[#F5F5F5] rounded-lg flex flex-col items-center">
+                    <div className="p-4 bg-line-light rounded-lg flex flex-col items-center">
                       <img src={mfaSetupData.qrCodeUrl} className="w-48 h-48 mb-4" />
-                      <code className="text-xs bg-white px-2 py-1 rounded">{mfaSetupData.secret}</code>
+                      <code className="text-xs bg-surface px-2 py-1 rounded">{mfaSetupData.secret}</code>
                     </div>
                     <div className="flex gap-2">
                         <input
@@ -403,12 +403,12 @@ export function Settings() {
                             value={mfaToken}
                             onChange={(e) => setMfaToken(e.target.value.replace(/\D/g, ''))}
                             placeholder="000000"
-                            className="w-32 h-11 text-center font-mono border border-[#E0E0E0] rounded-lg"
+                            className="w-32 h-11 text-center font-mono border border-line rounded-lg"
                         />
                         <button
                             onClick={handleVerifyMFASetup}
                             disabled={isMFALoading || mfaToken.length < 6}
-                            className="flex-1 bg-[#13B5EA] text-white rounded-lg font-medium"
+                            className="flex-1 bg-brand text-white rounded-lg font-medium"
                         >
                             Verify & Enable
                         </button>
@@ -419,7 +419,7 @@ export function Settings() {
                 {mfaEnabled && (
                    <button
                     onClick={handleDisableMFA}
-                    className="px-4 py-2 text-[#E53935] border border-[#E53935] rounded-lg font-medium hover:bg-[#FFEBEE]"
+                    className="px-4 py-2 text-danger border border-danger rounded-lg font-medium hover:bg-danger-light"
                   >
                     Disable 2FA
                   </button>

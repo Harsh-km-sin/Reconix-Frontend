@@ -115,69 +115,69 @@ export function JobUploadBuilder() {
         <div className="max-w-[1000px] mx-auto animate-fade-in p-8">
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Upload Data for {getJobTitle()}</h1>
-                <p className="text-[#555555]">Step 1: Upload your Excel file to begin</p>
+                <h1 className="text-2xl font-bold text-ink mb-2">Upload Data for {getJobTitle()}</h1>
+                <p className="text-ink-mid">Step 1: Upload your Excel file to begin</p>
             </div>
 
             {!fileData ? (
                 <div
                     {...getRootProps()}
-                    className={`bg-white border-2 border-dashed rounded-xl p-16 text-center transition-colors cursor-pointer
-            ${isDragActive ? 'border-[#13B5EA] bg-[#E5F6FC]' : 'border-[#E0E0E0] hover:border-[#13B5EA] hover:bg-[#FAFAFA]'}
+                    className={`bg-surface border-2 border-dashed rounded-xl p-16 text-center transition-colors cursor-pointer
+            ${isDragActive ? 'border-brand bg-brand-light' : 'border-line hover:border-brand hover:bg-page'}
             ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
           `}
                 >
                     <input {...getInputProps()} />
-                    <div className="w-16 h-16 bg-[#F5F5F5] rounded-full flex items-center justify-center mx-auto mb-6">
+                    <div className="w-16 h-16 bg-line-light rounded-full flex items-center justify-center mx-auto mb-6">
                         {isProcessing ? (
-                            <Loader2 className="w-8 h-8 text-[#13B5EA] animate-spin" />
+                            <Loader2 className="w-8 h-8 text-brand animate-spin" />
                         ) : (
-                            <FileUp className={`w-8 h-8 ${isDragActive ? 'text-[#13B5EA]' : 'text-[#8A8A8A]'}`} />
+                            <FileUp className={`w-8 h-8 ${isDragActive ? 'text-brand' : 'text-ink-light'}`} />
                         )}
                     </div>
 
-                    <h3 className="text-xl font-bold text-[#1A1A1A] mb-3">
+                    <h3 className="text-xl font-bold text-ink mb-3">
                         {isDragActive ? 'Drop your Excel file here' : 'Click to upload or drag & drop'}
                     </h3>
-                    <p className="text-[#8A8A8A] max-w-sm mx-auto">
+                    <p className="text-ink-light max-w-sm mx-auto">
                         Upload your spreadsheet containing the job data. We support .xlsx and .xls formats up to 25MB.
                     </p>
                 </div>
             ) : !fileData.selectedSheet ? (
-                <div className="bg-white border border-[#E0E0E0] rounded-xl overflow-hidden animate-slide-up">
-                    <div className="p-6 border-b border-[#E0E0E0] flex items-center justify-between">
+                <div className="bg-surface border border-line rounded-xl overflow-hidden animate-slide-up">
+                    <div className="p-6 border-b border-line flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#E8F5E9] rounded-lg flex items-center justify-center">
-                                <FileSpreadsheet className="w-5 h-5 text-[#3BB54A]" />
+                            <div className="w-10 h-10 bg-success-light rounded-lg flex items-center justify-center">
+                                <FileSpreadsheet className="w-5 h-5 text-success" />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-[#1A1A1A]">{fileData.fileName}</h3>
-                                <p className="text-sm text-[#8A8A8A]">{fileData.sheets.length} sheets discovered</p>
+                                <h3 className="font-semibold text-ink">{fileData.fileName}</h3>
+                                <p className="text-sm text-ink-light">{fileData.sheets.length} sheets discovered</p>
                             </div>
                         </div>
                         <button
                             onClick={() => setFileData(null)}
-                            className="text-sm text-[#E53935] hover:underline"
+                            className="text-sm text-danger hover:underline"
                         >
                             Cancel & Upload Different File
                         </button>
                     </div>
 
                     <div className="p-6">
-                        <h4 className="text-sm font-semibold text-[#555555] uppercase tracking-wide mb-4">Select Target Sheet</h4>
+                        <h4 className="text-sm font-semibold text-ink-mid uppercase tracking-wide mb-4">Select Target Sheet</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             {fileData.sheets.map(sheet => (
                                 <button
                                     key={sheet}
                                     onClick={() => handleSheetSelect(sheet)}
                                     disabled={isProcessing}
-                                    className="flex items-center justify-between p-4 border border-[#E0E0E0] rounded-lg hover:border-[#13B5EA] hover:bg-[#E5F6FC] transition-colors group"
+                                    className="flex items-center justify-between p-4 border border-line rounded-lg hover:border-brand hover:bg-brand-light transition-colors group"
                                 >
-                                    <span className="font-medium text-[#1A1A1A] truncate pr-4">{sheet}</span>
+                                    <span className="font-medium text-ink truncate pr-4">{sheet}</span>
                                     {isProcessing ? (
-                                        <Loader2 className="w-4 h-4 text-[#13B5EA] animate-spin" />
+                                        <Loader2 className="w-4 h-4 text-brand animate-spin" />
                                     ) : (
-                                        <ArrowRight className="w-4 h-4 text-[#8A8A8A] group-hover:text-[#13B5EA]" />
+                                        <ArrowRight className="w-4 h-4 text-ink-light group-hover:text-brand" />
                                     )}
                                 </button>
                             ))}
@@ -201,11 +201,11 @@ export function JobUploadBuilder() {
 
             {/* Information Panel */}
             {!fileData && (
-                <div className="mt-8 bg-[#E5F6FC] rounded-lg p-5 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-[#13B5EA] flex-shrink-0 mt-0.5" />
+                <div className="mt-8 bg-brand-light rounded-lg p-5 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="text-sm font-semibold text-[#1A1A1A]">Upload Guidelines</h4>
-                        <ul className="mt-2 text-sm text-[#555555] space-y-1 ml-4 list-disc">
+                        <h4 className="text-sm font-semibold text-ink">Upload Guidelines</h4>
+                        <ul className="mt-2 text-sm text-ink-mid space-y-1 ml-4 list-disc">
                             <li>Ensure your columns have a clear header row.</li>
                             <li>Only the first 10,000 rows will be processed in a single chunk.</li>
                             <li>Dates should be formatted cleanly (e.g., YYYY-MM-DD or DD/MM/YYYY).</li>
